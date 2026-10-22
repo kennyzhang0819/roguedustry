@@ -6,6 +6,7 @@ A roguelike run through the Mindustry v8 campaign. The game itself is unchanged:
 - Research is free. A tech tree node unlocks as soon as the campaign would allow it: when you enter or clear a map, when you first get an item, or when the nodes before it are unlocked. Maps open up the same way.
 - After you beat Planetary Launch Terminal, random maps open up and the run goes on as long as you last.
 - Processors and the other logic blocks, and the launch pads and other blocks that move things between maps, are disabled. They still show in the tech tree, greyed out.
+- There is no limit on how many units you can have.
 - Your normal campaign progress is never touched.
 
 ### Losing

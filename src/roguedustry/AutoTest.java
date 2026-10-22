@@ -50,7 +50,7 @@ public class AutoTest{
     void onMissionLoaded(){
         RogueRun run = RogueRun.current;
         RogueUI rui = RoguedustryMod.ui;
-        Log.info("[Rogue-Test] Mission loaded. active=@ slot=@ cursePending=@ relicPending=@", RogueRun.active(), run.slot, run.pendingCurse, run.pendingRelic);
+        Log.info("[Rogue-Test] Mission loaded. active=@ slot=@ cursePending=@ relicPending=@ unitCap=@", RogueRun.active(), run.slot, run.pendingCurse, run.pendingRelic, mindustry.entities.Units.getCap(state.rules.defaultTeam));
         shot("01-relic");
 
         later(0.7f, () -> rui.choose(0));

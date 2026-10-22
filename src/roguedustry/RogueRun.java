@@ -82,6 +82,7 @@ public class RogueRun{
 
         Rules rules = m.rules();
         rules.tags.put(tag, String.valueOf(id));
+        rules.disableUnitCap = true;
         syncWhitelist(rules);
 
         starting = true;
@@ -102,6 +103,7 @@ public class RogueRun{
     }
 
     void onMissionLoaded(){
+        state.rules.disableUnitCap = true;
         markProduced();
         int count = Tech.autoUnlock(this);
         save();
