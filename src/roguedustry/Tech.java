@@ -70,10 +70,6 @@ public class Tech{
         return nodes().select(n -> !(n.content instanceof SectorPreset) && n.parent != null && run.unlocked.contains(n.content));
     }
 
-    public static Seq<TechNode> lockedNext(RogueRun run){
-        return nodes().select(n -> !(n.content instanceof SectorPreset) && waitingOnParent(run, n) && !open(run, n));
-    }
-
     public static Seq<SectorPreset> playableSectors(RogueRun run){
         Seq<SectorPreset> out = new Seq<>();
         for(TechNode node : nodes()){

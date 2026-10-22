@@ -27,7 +27,8 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 - `src/roguedustry/Rewards.java`: relics and modifiers, their rarity, how many picks per map
 - `src/roguedustry/Mutators.java`: enemy mutators, terror level and points
 - `src/roguedustry/MapGen.java`: random maps with a land path and a river to the core
-- `src/roguedustry/RogueUI.java`: menu, map picker, tech tree window, relic and modifier picks, side panel
+- `src/roguedustry/RogueUI.java`: menu, map picker, relic and modifier picks, side panel
+- `src/roguedustry/TechTreeDialog.java`: the tech tree window, a copy of the game's research window that reads the run's unlocks
 - `tools/`: run report and source download script (not part of the mod)
 
 ## Game source
@@ -48,6 +49,8 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 - Unit, weapon and turret ranges are shared by both teams. Enemy-only range changes must be undone right after the enemy uses them.
 - The game's "save on start" option makes a save of the map's start. During a run it is deleted, or a lost map could be replayed.
 - When a save loads, the slot it came from is only known one frame after the "world loaded" event.
+- The game's research window reads the real campaign's unlocks and can't be changed from a mod, so we draw our own.
+- The tree layout keeps state in its nodes. Laying out the same nodes twice scatters them, so the tech tree window is rebuilt each time it opens.
 
 ## Several agents at once
 - Give each agent its own branch or git worktree. Two agents must never edit the same files in one folder.

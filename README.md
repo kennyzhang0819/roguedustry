@@ -33,7 +33,7 @@ Needs Mindustry v8 (build 154 or newer) on desktop.
 
 ## Playing
 
-- The panel under the wave counter shows the map and its goal, the terror level and mutators, how far you are toward the next modifier, and a **Tech tree** button that shows what's unlocked and what each next node needs. Use this button, not the game's own tech tree.
+- The panel under the wave counter shows the map and its goal, the terror level and mutators, how far you are toward the next modifier, and a **Tech tree** button. It opens the campaign's tech tree without costs: yellow nodes are unlocked, red ones are locked, and hovering a node shows what it still needs. Use this button, not the game's own tech tree.
 
 ## Run report
 

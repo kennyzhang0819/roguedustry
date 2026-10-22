@@ -18,9 +18,9 @@ import mindustry.ui.dialogs.*;
 import static mindustry.Vars.*;
 
 public class RogueUI{
-    public @Nullable BaseDialog menuDialog, missionDialog, researchDialog, rewardDialog, overDialog;
+    public @Nullable BaseDialog menuDialog, missionDialog, rewardDialog, overDialog;
+    public @Nullable TechTreeDialog researchDialog;
     public Seq<Rewards.Reward> offered = new Seq<>();
-    static final String techInfoKey = "roguedustry-tech-info";
 
     public void init(){
         ui.menufrag.addButton("Roguedustry", Icon.play, this::showMenu);
@@ -175,24 +175,9 @@ public class RogueUI{
     }
 
     public void showResearch(){
-        researchDialog = new BaseDialog("Tech tree");
-        Table list = new Table();
-        int[] version = {-1};
-        list.update(() -> {
-            if(run() == null || version[0] == run().techVersion) return;
-            version[0] = run().techVersion;
-            rebuildResearch(list);
-        });
-
-        researchDialog.cont.pane(list).grow();
-        researchDialog.addCloseButton();
-        pauseWhileShown(researchDialog);
+        //the tree layout keeps state in its nodes, so a fresh window is built each time
+        researchDialog = new TechTreeDialog();
         researchDialog.show();
-
-        if(!Core.settings.getBool(techInfoKey, false)){
-            Core.settings.put(techInfoKey, true);
-            ui.showInfo("In roguedustry, tech tree nodes are immediately unlocked upon entering a new level.");
-        }
     }
 
     static void pauseWhileShown(BaseDialog dialog){
@@ -203,36 +188,6 @@ public class RogueUI{
         dialog.hidden(() -> {
             if(pause && state.isGame() && !state.gameOver) state.set(State.playing);
         });
-    }
-
-    void rebuildResearch(Table table){
-        RogueRun run = run();
-        table.clear();
-        table.top().left().defaults().left().pad(3f);
-
-        Seq<TechNode> unlocked = Tech.unlockedNodes(run);
-        unlocked.sort(n -> n.depth);
-        table.add("Unlocked (" + unlocked.size + ")").color(Pal.accent).row();
-        table.table(grid -> {
-            grid.left();
-            int i = 0;
-            for(TechNode node : unlocked){
-                grid.image(node.content.uiIcon).size(40f).pad(3f).tooltip(node.content.localizedName);
-                if(++i % 16 == 0) grid.row();
-            }
-        }).row();
-
-        Seq<TechNode> locked = Tech.lockedNext(run);
-        if(locked.any()){
-            table.add("Unlocks next").color(Color.lightGray).padTop(12f).row();
-            for(TechNode node : locked){
-                table.table(row -> {
-                    row.left();
-                    row.image(node.content.uiIcon).size(32f).color(Color.gray);
-                    row.add("[lightgray]" + node.content.localizedName + ": needs " + Tech.missingText(run, node)).wrap().width(700f).padLeft(8f);
-                }).growX().row();
-            }
-        }
     }
 
     public void showReward(boolean relic){

@@ -2,6 +2,7 @@ package roguedustry;
 
 import arc.*;
 import arc.files.*;
+import arc.scene.ui.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
@@ -53,14 +54,28 @@ public class AutoTest{
 
         later(1f, () -> {
             rui.choose(0);
-            Core.settings.remove(RogueUI.techInfoKey);
+            Core.settings.remove(TechTreeDialog.infoKey);
         });
         later(2f, rui::showResearch);
         later(4f, () -> shot("02-tech-info"));
-        later(5f, () -> Core.scene.getDialog().hide());
-        later(6f, () -> shot("03-tech"));
-        later(7f, () -> rui.researchDialog.hide());
-        later(8f, () -> state.wave = 3);
+        later(5f, () -> {
+            for(var e : Core.scene.root.getChildren().copy()){
+                if(e instanceof Dialog d) d.hide();
+            }
+        });
+        later(6.5f, rui::showResearch);
+        later(7.3f, () -> {
+            var view = rui.researchDialog.view;
+            for(var e : view.getChildren()){
+                if(e instanceof ImageButton b && b.userObject == mindustry.content.Blocks.scatter.techNode){
+                    view.hoverNode = b;
+                    view.rebuild();
+                }
+            }
+        });
+        later(8f, () -> shot("03-tech"));
+        later(8.5f, () -> rui.researchDialog.hide());
+        later(9.5f, () -> state.wave = 3);
         later(10f, () -> shot("04-modifier"));
         later(11f, () -> rui.choose(0));
         later(12f, () -> {
