@@ -5,3 +5,4 @@ rogue-shots/
 .idea/
 *.iml
 .vscode/
+__pycache__/
