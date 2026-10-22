@@ -222,13 +222,14 @@ def aggressive_deployment():
     ]
 
 
-for name, fn in [
-    ("speed-freaks", speed_freaks), ("life-leech", life_leech), ("long-range", long_range), ("just-die", just_die),
-    ("self-destruction", self_destruction), ("mutually-assured-destruction", mutually_assured),
-    ("walking-infested", walking_infested), ("alien-incubation", alien_incubation), ("barrier", barrier),
-    ("avenger", avenger), ("inspiration", inspiration), ("evasive-maneuvers", evasive_maneuvers),
-    ("transmutation", transmutation), ("aggressive-deployment", aggressive_deployment),
-]:
-    icon(name, fn())
+if __name__ == "__main__":
+    for name, fn in [
+        ("speed-freaks", speed_freaks), ("life-leech", life_leech), ("long-range", long_range), ("just-die", just_die),
+        ("self-destruction", self_destruction), ("mutually-assured-destruction", mutually_assured),
+        ("walking-infested", walking_infested), ("alien-incubation", alien_incubation), ("barrier", barrier),
+        ("avenger", avenger), ("inspiration", inspiration), ("evasive-maneuvers", evasive_maneuvers),
+        ("transmutation", transmutation), ("aggressive-deployment", aggressive_deployment),
+    ]:
+        icon(name, fn())
 
-print("Icons written to", os.path.abspath(OUT))
+    print("Icons written to", os.path.abspath(OUT))
