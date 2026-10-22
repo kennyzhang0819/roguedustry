@@ -130,6 +130,12 @@ public class AutoTest{
             Mutators.deployTimer = 1e9f;
         });
         later(19f, () -> Log.info("[Rogue-Test] after deployment: enemies=@", Groups.unit.count(u -> u.team == state.rules.waveTeam)));
+        later(19.1f, () -> {
+            int before = run.mutators.size;
+            run.pendingRelic = true;
+            run.take(Rewards.absolution);
+            Log.info("[Rogue-Test] absolution: curses @ -> @", before, run.mutators.size);
+        });
         later(19.2f, rui::showRunInfo);
         later(19.6f, () -> shot("05c-run"));
         later(19.9f, () -> rui.infoDialog.hide());

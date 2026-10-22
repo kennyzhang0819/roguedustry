@@ -50,19 +50,20 @@ public class Rewards{
     coreLink = new Reward("core-link", "Core Link", Rarity.relic, 1, "All drills send what they mine straight into your core."),
     overclock = new Reward("overclock", "Overclock", Rarity.relic, 1, "Everything you build works 50% faster."),
     livingMetal = new Reward("living-metal", "Living Metal", Rarity.relic, 1, "All your blocks repair 2% of their health every second."),
+    absolution = new Reward("absolution", "Absolution", Rarity.relic, 1, "Removes 2 random curses."),
 
     duoDrills = new Reward("duo-drills", "Duo Drills", Rarity.common, 3, "Duos fire 50% faster."),
     hardenedShields = new Reward("hardened-shields", "Hardened Shields", Rarity.uncommon, 2, "All your unit and structure shields are 100% stronger."),
     ironLegion = new Reward("iron-legion", "Iron Legion", Rarity.rare, 1, "New Daggers, Maces and Fortresses get a shield as big as their health.");
 
-    public static final Seq<Reward> all = Seq.with(coreLink, overclock, livingMetal, duoDrills, hardenedShields, ironLegion);
+    public static final Seq<Reward> all = Seq.with(coreLink, overclock, livingMetal, absolution, duoDrills, hardenedShields, ironLegion);
 
     public static Reward get(String id){
         return all.find(r -> r.id.equals(id));
     }
 
-    public static Seq<Reward> rollRelics(ObjectIntMap<Reward> owned, Rand rand){
-        Seq<Reward> pool = all.select(r -> r.isRelic() && owned.get(r, 0) < r.max), out = new Seq<>();
+    public static Seq<Reward> rollRelics(ObjectIntMap<Reward> owned, int curses, Rand rand){
+        Seq<Reward> pool = all.select(r -> r.isRelic() && owned.get(r, 0) < r.max && (r != absolution || curses > 0)), out = new Seq<>();
         while(out.size < 3 && pool.any()){
             out.add(pool.remove(rand.random(pool.size - 1)));
         }

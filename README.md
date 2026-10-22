@@ -16,7 +16,7 @@ Lose a single map and the run is over: you start again from Ground Zero. Each ma
 
 - **Relics** are very strong. You pick 1 of 3 at the start of each map.
 - **Modifiers** are smaller changes, often to one turret or unit. They come in Common, Uncommon and Rare. You pick 1 of 3 for every 10 waves you clear on a map, so a 45-wave map gives 4 picks. A pick you earn on the last wave carries over to the next map.
-- Both last for the whole run. There are only 3 relics and 3 modifiers so far.
+- Both last for the whole run. There are only 4 relics and 3 modifiers so far. The Absolution relic removes 2 random curses.
 
 ### Mutators
 

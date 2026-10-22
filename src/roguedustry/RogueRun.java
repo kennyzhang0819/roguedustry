@@ -75,7 +75,7 @@ public class RogueRun{
     public void startMission(Mission m){
         mission = m.key();
         pendingCurse = curseOffer().any();
-        pendingRelic = Rewards.rollRelics(rewards, new Rand()).any();
+        pendingRelic = Rewards.rollRelics(rewards, mutators.size + 1, new Rand()).any();
         mapPicks = 0;
         slot = null;
         save();
@@ -164,7 +164,7 @@ public class RogueRun{
     }
 
     public Seq<Rewards.Reward> relicOffer(){
-        return Rewards.rollRelics(rewards, new Rand(id * 7919L + missionsCleared * 104729L));
+        return Rewards.rollRelics(rewards, mutators.size, new Rand(id * 7919L + missionsCleared * 104729L));
     }
 
     public Seq<Rewards.Reward> modifierOffer(){
@@ -181,6 +181,14 @@ public class RogueRun{
             picksTaken++;
         }
         rewards.increment(reward);
+        if(reward == Rewards.absolution){
+            Rand rand = new Rand(id * 31L + missionsCleared);
+            for(int i = 0; i < 2 && mutators.any(); i++){
+                Mutators.Mutator lifted = mutators.remove(rand.random(mutators.size - 1));
+                Mutators.lifted(lifted);
+                Log.info("[Rogue] Curse lifted: '@'", lifted.name);
+            }
+        }
         save();
         Log.info("[Rogue] Took '@'", reward.name);
     }

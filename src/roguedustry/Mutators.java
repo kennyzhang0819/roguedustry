@@ -157,6 +157,12 @@ public class Mutators{
         return out;
     }
 
+    static void lifted(Mutator m){
+        if(m == speedFreaks && state.isGame()){
+            for(Unit unit : state.rules.waveTeam.data().units) unit.unapply(speedEffect);
+        }
+    }
+
     static boolean on(Mutator m){
         return RogueRun.active() && RogueRun.current.mutators.contains(m);
     }
@@ -244,6 +250,10 @@ public class Mutators{
 
         @Override
         public void updateUnit(){
+            if(!on(longRange)){
+                inner.updateUnit();
+                return;
+            }
             widen(unit.type);
             try{
                 inner.updateUnit();

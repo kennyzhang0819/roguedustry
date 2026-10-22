@@ -212,15 +212,9 @@ public class RogueUI{
         }
         offered = curses.map(m -> () -> run.curse(m));
 
-        rewardDialog = new BaseDialog("Curse the enemies");
+        rewardDialog = new BaseDialog("Curse");
         Table c = rewardDialog.cont;
-        Mission m = Mission.of(run.mission);
-        c.add(m.name() + ": " + m.goal()).color(Pal.accent).row();
-        c.table(line -> {
-            line.add("[scarlet]Enemy mutators so far: ");
-            line.table(icons -> mutatorIcons(icons, run.mutators, 32f, 10));
-        }).padBottom(4f).row();
-        c.add("Pick one mutator for the enemies. They keep it for the rest of the run.").padTop(8f).padBottom(8f).row();
+        c.add("Pick a curse. It stays with you for the rest of the run.").padBottom(8f).row();
 
         c.table(row -> {
             for(int i = 0; i < curses.size; i++){
@@ -250,7 +244,7 @@ public class RogueUI{
 
         rewardDialog = new BaseDialog(relic ? "Choose a relic" : "Choose a modifier");
         Table c = rewardDialog.cont;
-        c.add(relic ? "Pick one relic. It lasts for the rest of the run." : "Pick one modifier. It lasts for the rest of the run.").padBottom(8f).row();
+        c.add(relic ? "Pick a relic. It stays with you for the rest of the run." : "Pick a modifier. It stays with you for the rest of the run.").padBottom(8f).row();
 
         c.table(row -> {
             for(int i = 0; i < rewards.size; i++){
