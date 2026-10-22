@@ -26,6 +26,10 @@ The icons are drawn by `tools/make-icons.py` (needs Python with Pillow and numpy
 
 ## Install
 
+The quickest way: run `./play.sh`. It builds the mod, puts it in the game's mods folder and starts the game. The first time, it also downloads the game (needs Java 17 or newer).
+
+To do it by hand:
+
 1. Run `./build.sh` (needs Java 17 or newer). It creates `build/Roguedustry.jar`.
 2. Copy that file into your Mindustry mods folder:
    - Standalone: `%APPDATA%\Mindustry\mods\`
