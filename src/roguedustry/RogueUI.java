@@ -20,6 +20,7 @@ import static mindustry.Vars.*;
 public class RogueUI{
     public @Nullable BaseDialog menuDialog, missionDialog, rewardDialog, overDialog, infoDialog;
     public @Nullable TechTreeDialog researchDialog;
+    static final Color curseColor = Color.valueOf("f25555");
     public Seq<Runnable> offered = new Seq<>();
 
     public void init(){
@@ -44,8 +45,8 @@ public class RogueUI{
 
     void update(){
         if(!RogueRun.active() || state.gameOver || Core.scene.hasDialog()) return;
-        if(run().pendingCurse) showCurse();
-        else if(run().pendingRelic) showReward(true);
+        if(run().pendingRelic) showReward(true);
+        else if(run().pendingCurse) showCurse();
         else if(run().pendingModifiers > 0) showReward(false);
     }
 
@@ -59,7 +60,7 @@ public class RogueUI{
         if(run() == null){
             c.add("Play through the campaign maps in order, starting with a locked tech tree.").row();
             c.add("Pick a relic at the start of each map, and modifiers as the map goes on. They last the whole run.").row();
-            c.add("At the start of each map you also pick a mutator for the enemies. They keep it for the whole run.").row();
+            c.add("Every second map you also pick a [#" + curseColor + "]curse[] for the enemies. It lasts the whole run.").row();
             c.add("Lose a single map and the run is over: you start again from Ground Zero.").color(Pal.remove).row();
             c.add("Your normal campaign is not affected.").color(Color.lightGray).padBottom(10f).row();
             if(RogueRun.best() > 0) c.add("Best run: " + RogueRun.best() + " maps cleared").color(Pal.accent).row();
@@ -69,7 +70,7 @@ public class RogueUI{
                 showMissions();
             }).size(320f, 64f);
         }else{
-            c.add("Run in progress: " + run().missionsCleared + " maps cleared, " + run().mutators.size + " enemy mutators").color(Pal.accent).row();
+            c.add("Run in progress: " + run().missionsCleared + " maps cleared, " + run().mutators.size + " curses").color(Pal.accent).row();
             c.add(rewardSummary()).color(Color.lightGray).wrap().width(600f).padBottom(10f).row();
             c.button(run().mission != null ? "Continue " + Mission.of(run().mission).name() : "Continue", Icon.play, () -> {
                 menuDialog.hide();
@@ -143,7 +144,7 @@ public class RogueUI{
 
         c.add("Maps cleared: " + run.missionsCleared).color(Pal.accent).row();
         c.table(line -> {
-            line.add("[scarlet]Enemy mutators: ");
+            line.add("[#" + curseColor + "]Curses: ");
             line.table(icons -> mutatorIcons(icons, run.mutators, 32f, 10));
         }).padBottom(8f).row();
 
@@ -212,9 +213,9 @@ public class RogueUI{
         }
         offered = curses.map(m -> () -> run.curse(m));
 
-        rewardDialog = new BaseDialog("Curse");
+        rewardDialog = new BaseDialog("[#" + curseColor + "]Curse");
         Table c = rewardDialog.cont;
-        c.add("Pick a curse. It stays with you for the rest of the run.").padBottom(8f).row();
+        c.add("Pick a [#" + curseColor + "]curse[]. It stays with you for the rest of the run.").padBottom(8f).row();
 
         c.table(row -> {
             for(int i = 0; i < curses.size; i++){
@@ -223,7 +224,7 @@ public class RogueUI{
                 row.button(card -> {
                     card.top().margin(12f);
                     card.image(mutator.icon()).size(64f).padBottom(6f).row();
-                    card.add(mutator.name).color(Pal.remove).wrap().width(220f).padBottom(8f).get().setAlignment(Align.center);
+                    card.add(mutator.name).color(curseColor).wrap().width(220f).padBottom(8f).get().setAlignment(Align.center);
                     card.row();
                     card.add(mutator.description).wrap().width(220f).row();
                 }, Styles.defaultb, () -> choose(index)).size(260f, 260f).pad(8f);
@@ -242,9 +243,10 @@ public class RogueUI{
         }
         offered = rewards.map(r -> () -> run.take(r));
 
-        rewardDialog = new BaseDialog(relic ? "Choose a relic" : "Choose a modifier");
+        rewardDialog = new BaseDialog(relic ? "[#" + Rewards.Rarity.relic.color + "]Relic" : "Modifier");
         Table c = rewardDialog.cont;
-        c.add(relic ? "Pick a relic. It stays with you for the rest of the run." : "Pick a modifier. It stays with you for the rest of the run.").padBottom(8f).row();
+        String word = relic ? "[#" + Rewards.Rarity.relic.color + "]relic[]" : "modifier";
+        c.add("Pick a " + word + ". It stays with you for the rest of the run.").padBottom(8f).row();
 
         c.table(row -> {
             for(int i = 0; i < rewards.size; i++){
@@ -253,7 +255,7 @@ public class RogueUI{
                 row.button(card -> {
                     card.top().margin(12f);
                     card.add(reward.rarity.label).color(reward.rarity.color).padBottom(4f).row();
-                    card.add(reward.name).color(Pal.accent).padBottom(8f).row();
+                    card.add(reward.name).color(reward.rarity.color).padBottom(8f).row();
                     card.add(reward.description).wrap().width(220f).row();
                     if(run.stacks(reward) > 0) card.add("You have " + run.stacks(reward) + " of " + reward.max).color(Color.lightGray).padTop(8f).row();
                 }, Styles.defaultb, () -> choose(index)).size(260f, 230f).pad(8f);
@@ -296,13 +298,13 @@ public class RogueUI{
 
         c.pane(list -> {
             list.left().defaults().left().pad(2f);
-            list.add("[scarlet]Enemy mutators").padTop(6f).row();
+            list.add("[#" + curseColor + "]Curses").padTop(6f).row();
             if(run.mutators.isEmpty()) list.add("[lightgray]none").row();
             for(Mutators.Mutator mutator : run.mutators){
                 list.table(line -> {
                     line.left();
                     line.image(mutator.icon()).size(40f).padRight(8f);
-                    line.add("[scarlet]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(640f).left();
+                    line.add("[#" + curseColor + "]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(640f).left();
                 }).row();
             }
             rewardList(list, run, "Relics", true);

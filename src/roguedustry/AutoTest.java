@@ -51,16 +51,15 @@ public class AutoTest{
         RogueRun run = RogueRun.current;
         RogueUI rui = RoguedustryMod.ui;
         Log.info("[Rogue-Test] Mission loaded. active=@ slot=@ cursePending=@ relicPending=@", RogueRun.active(), run.slot, run.pendingCurse, run.pendingRelic);
-        shot("00-curse");
+        shot("01-relic");
 
         later(0.7f, () -> rui.choose(0));
-        later(1.4f, () -> {
-            Log.info("[Rogue-Test] curses=@", run.mutators.map(m -> m.name));
-            run.mutators.set(Mutators.all);
-            shot("01-relic");
-        });
+        later(0.9f, () -> run.pendingCurse = true);
+        later(1.4f, () -> shot("00-curse"));
         later(1.8f, () -> {
             rui.choose(0);
+            Log.info("[Rogue-Test] curses=@ microProcessor unlocked=@ buildable=@", run.mutators.map(m -> m.name), run.unlocked.contains(mindustry.content.Blocks.microProcessor), state.rules.bannedBlocks.contains(mindustry.content.Blocks.microProcessor));
+            run.mutators.set(Mutators.all);
             Core.settings.remove(TechTreeDialog.infoKey);
         });
         later(2.4f, rui::showResearch);
@@ -74,7 +73,7 @@ public class AutoTest{
         later(7.3f, () -> {
             var view = rui.researchDialog.view;
             for(var e : view.getChildren()){
-                if(view.hoverNode == null && e instanceof ImageButton b && b.visible && b.x > 100f && b.y > 100f && b.x < Core.graphics.getWidth() - 300f && !RogueRun.current.unlocked.contains(((mindustry.content.TechTree.TechNode)b.userObject).content)){
+                if(e instanceof ImageButton b && b.userObject == mindustry.content.Blocks.microProcessor.techNode){
                     view.hoverNode = b;
                     view.rebuild();
                 }

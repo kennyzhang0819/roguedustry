@@ -163,7 +163,7 @@ public class TechTreeDialog extends BaseDialog{
             this.parent = parent;
             width = height = nodeSize;
             nodes.add(this);
-            Seq<TechNode> kept = tech.children.select(c -> !Tech.removed(c));
+            Seq<TechNode> kept = tech.children;
             children = new Node[kept.size];
             for(int i = 0; i < children.length; i++){
                 children[i] = new Node(kept.get(i), this);
@@ -207,10 +207,10 @@ public class TechTreeDialog extends BaseDialog{
                 button.update(() -> {
                     float offset = (Core.graphics.getHeight() % 2) / 2f;
                     button.setPosition(node.x + panX + width / 2f, node.y + panY + height / 2f + offset, Align.center);
-                    boolean open = unlocked(node.tech), selectable = selectable(node.tech);
-                    button.getStyle().up = open ? Tex.buttonOver : selectable ? Tex.button : Tex.buttonRed;
+                    boolean off = Tech.disabled(node.tech.content), open = unlocked(node.tech), selectable = off || selectable(node.tech);
+                    button.getStyle().up = off ? Tex.button : open ? Tex.buttonOver : selectable ? Tex.button : Tex.buttonRed;
                     ((TextureRegionDrawable)button.getStyle().imageUp).setRegion(selectable ? node.tech.content.uiIcon : Icon.lock.getRegion());
-                    button.getImage().setColor(open ? Color.white : selectable ? Color.gray : Pal.gray);
+                    button.getImage().setColor(off ? Pal.darkishGray : open ? Color.white : selectable ? Color.gray : Pal.gray);
                     button.getImage().layout();
                 });
                 addChild(button);
@@ -241,7 +241,7 @@ public class TechTreeDialog extends BaseDialog{
 
             infoTable.update(() -> infoTable.setPosition(button.x + button.getWidth(), button.y + button.getHeight(), Align.topLeft));
             infoTable.left().background(Tex.button).margin(8f);
-            boolean selectable = selectable(node);
+            boolean selectable = Tech.disabled(node.content) || selectable(node);
             infoTable.table(b -> {
                 b.left().defaults().left();
                 if(selectable) b.button(Icon.info, Styles.flati, () -> ui.content.show(node.content)).growY().width(50f);
@@ -250,6 +250,8 @@ public class TechTreeDialog extends BaseDialog{
                     desc.add(selectable ? node.content.localizedName : "[accent]???").row();
                     if(node.content instanceof SectorPreset p && run != null && run.cleared.contains(p)){
                         desc.add("Cleared").color(Pal.accent);
+                    }else if(Tech.disabled(node.content)){
+                        desc.add("Disabled in Roguedustry").color(Pal.remove);
                     }else if(unlocked(node)){
                         desc.add(node.content instanceof SectorPreset ? "Ready to play" : "Unlocked").color(Pal.accent);
                     }else if(run != null){
@@ -285,7 +287,7 @@ public class TechTreeDialog extends BaseDialog{
                 if(!showNode(node)) continue;
                 for(Node child : node.children){
                     if(!showNode(child)) continue;
-                    boolean lock = !unlocked(node.tech) || !unlocked(child.tech);
+                    boolean lock = !unlocked(node.tech) || !unlocked(child.tech) || Tech.disabled(child.tech.content);
                     Draw.z(lock ? 1f : 2f);
                     Lines.stroke(Scl.scl(4f), lock ? Pal.gray : Pal.accent);
                     Draw.alpha(parentAlpha);

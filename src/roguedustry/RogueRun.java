@@ -74,8 +74,8 @@ public class RogueRun{
 
     public void startMission(Mission m){
         mission = m.key();
-        pendingCurse = curseOffer().any();
-        pendingRelic = Rewards.rollRelics(rewards, mutators.size + 1, new Rand()).any();
+        pendingCurse = missionsCleared % 2 == 1 && curseOffer().any();
+        pendingRelic = Rewards.rollRelics(rewards, mutators.size, new Rand()).any();
         mapPicks = 0;
         slot = null;
         save();
@@ -204,7 +204,7 @@ public class RogueRun{
         rules.hideBannedBlocks = true;
         rules.bannedBlocks.clear();
         for(Block block : content.blocks()){
-            if(block.techNode != null && unlocked.contains(block) && !Tech.removed(block.techNode)) rules.bannedBlocks.add(block);
+            if(block.techNode != null && unlocked.contains(block) && !Tech.disabled(block)) rules.bannedBlocks.add(block);
         }
         if(!headless && state.isGame()) ui.hudfrag.blockfrag.rebuild();
     }

@@ -1,8 +1,10 @@
 # Roguedustry
 
-A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks (processors, memory, displays and so on) are left out of the run. At the start of each map the player picks a mutator for the enemies (StarCraft II co-op style) and a relic for themselves, and gets a modifier pick every 10 waves cleared. All of them last the whole run. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
+A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks and blocks that move things between maps (launch pads) are disabled: greyed out in the tech tree, never buildable, but they still unlock so maps that require them can open. At the start of each map the player picks a relic, every second map also a curse for the enemies (a StarCraft II co-op style mutator), and gets a modifier pick every 10 waves cleared. All of them last the whole run. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
 
-Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Mutators should be very punishing.
+Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Mutators should be very punishing. In the UI they are called curses.
+
+Theme colors: curses red, relics purple, modifiers by rarity (common green, uncommon blue, rare gold).
 
 ## Writing rules
 - No code comments, except to warn about a game quirk that would cause a bug if someone missed it. Keep those to one line.

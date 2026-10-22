@@ -10,9 +10,9 @@ import mindustry.type.*;
 public class Rewards{
 
     public enum Rarity{
-        common("Common", Color.white, 60),
-        uncommon("Uncommon", Pal.heal, 30),
-        rare("Rare", Pal.lancerLaser, 10),
+        common("Common", Color.valueOf("84f491"), 60),
+        uncommon("Uncommon", Color.valueOf("6f9dff"), 30),
+        rare("Rare", Color.valueOf("ffd37f"), 10),
         relic("Relic", Color.valueOf("c77dff"), 0);
 
         public final String label;

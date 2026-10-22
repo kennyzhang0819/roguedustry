@@ -13,17 +13,13 @@ public class Tech{
 
     public static Seq<TechNode> nodes(){
         Seq<TechNode> out = new Seq<>();
-        Planets.serpulo.techTree.each(n -> {
-            if(!removed(n)) out.add(n);
-        });
+        Planets.serpulo.techTree.each(out::add);
         return out;
     }
 
-    public static boolean removed(TechNode node){
-        for(TechNode n = node; n != null; n = n.parent){
-            if(n.content instanceof Block b && b.category == Category.logic) return true;
-        }
-        return false;
+    public static boolean disabled(UnlockableContent content){
+        return content instanceof Block b && (b.category == Category.logic
+            || b == Blocks.launchPad || b == Blocks.advancedLaunchPad || b == Blocks.landingPad || b == Blocks.interplanetaryAccelerator);
     }
 
     public static boolean done(RogueRun run, Objective o){

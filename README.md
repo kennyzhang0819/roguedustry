@@ -5,7 +5,7 @@ A roguelike run through the Mindustry v8 campaign. The game itself is unchanged:
 - Play the Serpulo campaign maps one after another, starting with a locked tech tree.
 - Research is free. A tech tree node unlocks as soon as the campaign would allow it: when you enter or clear a map, when you first get an item, or when the nodes before it are unlocked. Maps open up the same way.
 - After you beat Planetary Launch Terminal, random maps open up and the run goes on as long as you last.
-- Processors and the other logic blocks are left out of the run.
+- Processors and the other logic blocks, and the launch pads and other blocks that move things between maps, are disabled. They still show in the tech tree, greyed out.
 - Your normal campaign progress is never touched.
 
 ### Losing
@@ -20,7 +20,7 @@ Lose a single map and the run is over: you start again from Ground Zero. Each ma
 
 ### Mutators
 
-Enemies get mutators, like in StarCraft II co-op. At the start of each map, before your relic, you curse the enemies: pick 1 of 3 mutators they don't have yet. They keep it for the whole run, so every map is harder than the last. There are 14 so far:
+Enemies get mutators, like in StarCraft II co-op. Every second map, right after your relic, you curse the enemies: pick 1 of 3 curses they don't have yet. They keep it for the whole run. There are 14 so far:
 
 - Speed Freaks, Life Leech, Long Range, Just Die!
 - On death: Self Destruction, Mutually Assured Destruction (bosses), Walking Infested (ground units release the first unit of their line), Alien Incubation (the same for air units)
@@ -40,7 +40,7 @@ Needs Mindustry v8 (build 154 or newer) on desktop.
 
 ## Playing
 
-- Under the wave counter there are two buttons. **Run** pauses the game and shows the map's goal, the enemy mutators, your relics and modifiers, and the wave of the next modifier pick.
+- Under the wave counter there are two buttons. **Run** pauses the game and shows the map's goal, the curses, your relics and modifiers, and the wave of the next modifier pick.
 - **Tech tree** opens the campaign's tech tree without costs. Like in the campaign, locked nodes show a padlock and "???", and hovering a node shows what it still needs. Use this button, not the game's own tech tree.
 
 ## Run report
@@ -49,7 +49,7 @@ Run `./report.sh` to see every campaign map with what it needs to unlock, what i
 
 ## Screenshot check
 
-Set `ROGUE_AUTOTEST=hud` and start the game. It starts a new run on Ground Zero, picks a mutator and a relic, opens the tech tree, picks a modifier, sends a wave with every mutator on, opens the Run window, pretends the map was cleared, saves a screenshot of each step to `ROGUE_SHOTS` and quits. Point the game's data folder at an empty folder so your own saves aren't touched (`APPDATA` on Windows, `XDG_DATA_HOME` on Linux). The test deletes any saved run.
+Set `ROGUE_AUTOTEST=hud` and start the game. It starts a new run on Ground Zero, picks a relic and a curse, opens the tech tree, picks a modifier, sends a wave with every mutator on, opens the Run window, pretends the map was cleared, saves a screenshot of each step to `ROGUE_SHOTS` and quits. Point the game's data folder at an empty folder so your own saves aren't touched (`APPDATA` on Windows, `XDG_DATA_HOME` on Linux). The test deletes any saved run.
 
 ## Known limits
 
