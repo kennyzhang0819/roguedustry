@@ -2,7 +2,7 @@ name: "roguedustry"
 displayName: "Roguedustry"
 author: "kennyzhang0819"
 main: "roguedustry.RoguedustryMod"
-description: "Roguelike tower defense. Survive a hand-authored wave schedule with nothing but turrets, walls, shields and menders. Kills give XP; every level up offers 1 of 3 packs."
+description: "Roguelike run through the Serpulo campaign. Start with a locked tech tree, pick a permanent modifier after every cleared map, and see how far you get. Your normal campaign is not affected."
 version: "0.1.0"
 minGameVersion: "154"
 java: true

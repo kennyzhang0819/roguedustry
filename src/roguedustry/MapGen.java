@@ -8,6 +8,7 @@ import mindustry.content.*;
 import mindustry.game.*;
 import mindustry.maps.*;
 import mindustry.world.*;
+import mindustry.world.blocks.environment.*;
 
 import static mindustry.Vars.*;
 
@@ -26,12 +27,14 @@ public class MapGen{
         rand = new Rand(seed);
     }
 
-    public static Map create(){
-        return create((int)(Math.random() * Integer.MAX_VALUE));
+    public static MapGen layoutOf(int seed){
+        MapGen gen = new MapGen(seed);
+        gen.layout();
+        return gen;
     }
 
-    public static Map create(int seed){
-        StringMap tags = StringMap.of("name", "Random map " + seed, "author", "Roguedustry");
+    public static Map create(int seed, String name){
+        StringMap tags = StringMap.of("name", name, "author", "Roguedustry");
         Map map = new Map(tags);
         world.addMapLoader(map, () -> world.loadGenerator(width, height, tiles -> new MapGen(seed).generate(tiles)));
         return map;
@@ -161,25 +164,34 @@ public class MapGen{
     }
 
     void placeOres(){
-        for(int n = 0; n < 3; n++){
+        Block[] nearCore = {Blocks.oreCopper, Blocks.oreLead, Blocks.oreCopper, Blocks.sand};
+        for(Block ore : nearCore){
             float angle = rand.random(360f), dist = rand.random(7f, 14f);
-            orePatch(coreX + (int)Angles.trnsx(angle, dist), coreY + (int)Angles.trnsy(angle, dist), rand.random(2.5f, 3.5f));
+            patch(coreX + (int)Angles.trnsx(angle, dist), coreY + (int)Angles.trnsy(angle, dist), rand.random(2.5f, 3.5f), ore);
         }
-        for(int n = 0; n < 22; n++){
-            orePatch(rand.random(border, width - border), rand.random(border, height - border), rand.random(2f, 4.5f));
+        for(int n = 0; n < 34; n++){
+            int x = rand.random(border, width - border), y = rand.random(border, height - border);
+            float far = Mathf.dst(x, y, coreX, coreY) / width;
+            Seq<Block> options = Seq.with(Blocks.oreCopper, Blocks.oreLead, Blocks.sand);
+            if(far > 0.2f) options.add(Blocks.oreCoal, Blocks.sand);
+            if(far > 0.35f) options.add(Blocks.oreTitanium);
+            if(far > 0.6f) options.add(Blocks.oreThorium);
+            patch(x, y, rand.random(2f, 4.5f), options.random(rand));
         }
     }
 
-    void orePatch(int cx, int cy, float radius){
+    void patch(int cx, int cy, float radius, Block ore){
         int r = (int)radius + 1;
         for(int x = cx - r; x <= cx + r; x++){
             for(int y = cy - r; y <= cy + r; y++){
                 if(!inner(x, y)) continue;
                 int i = x + y * width;
                 if(walls[i] != null || floors[i] == Blocks.water || floors[i] == Blocks.deepwater) continue;
-                if(Math.abs(x - coreX) <= 1 && Math.abs(y - coreY) <= 1) continue;
+                if(Math.abs(x - coreX) <= 2 && Math.abs(y - coreY) <= 2) continue;
                 float wobble = Simplex.noise2d(seed + 2, 2, 0.5, 1f / 3f, x, y) * 1.5f;
-                if(Mathf.dst(x, y, cx, cy) + wobble <= radius + 0.75f) ores[i] = Blocks.oreCopper;
+                if(Mathf.dst(x, y, cx, cy) + wobble > radius + 0.75f) continue;
+                if(ore instanceof Floor f && !(ore instanceof OverlayFloor)) floors[i] = f;
+                else ores[i] = ore;
             }
         }
     }

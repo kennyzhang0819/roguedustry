@@ -1,15 +1,14 @@
 # Roguedustry
 
-A roguelike tower-defense mod for Mindustry v8.
+A roguelike run through the Mindustry v8 campaign. The game itself is unchanged: you mine, build conveyors, factories, power and turrets as usual. The run adds the roguelike parts on top.
 
-- You place turrets, walls, shields, menders and drills. No units or conveyors.
-- Everything you place works on its own. Turrets need no ammo or power.
-- Drills mine copper and send it straight to your core. Drills cost copper: Mechanical 20, Pneumatic 50, Laser 200, Blast 500. Removing one gives the copper back.
-- Spend copper in the shop on more block packs. The shop gets new stock every wave, and you can pay to reroll it.
-- Survive 15 hand-made waves. You lose if your core is destroyed.
-- Kills give XP. Each level up pauses the game and lets you pick 1 of 3 block packs.
-- Each pack gives a number of blocks you can place. The build menu only shows what you have left. Removing a block you placed gives it back.
-- Stronger packs appear at levels 3, 6 and 9.
+- Play the Serpulo campaign maps one after another, starting with a locked tech tree.
+- Research with the items you collect. Maps open up the same way they do in the campaign: clear the map before it and research what it asks for.
+- Each cleared map lets you pick 1 of 3 modifiers. Modifiers last for the whole run and some can be picked more than once. Red ones are risky: they help and hurt.
+- Items left in your core when you clear a map are saved for research.
+- Lose a map and the run is over. Your score is how many maps you cleared.
+- After you beat Planetary Launch Terminal, random maps open up and the run goes on as long as you last.
+- Your normal campaign progress is never touched.
 
 ## Install
 
@@ -17,31 +16,25 @@ A roguelike tower-defense mod for Mindustry v8.
 2. Copy that file into your Mindustry mods folder:
    - Standalone: `%APPDATA%\Mindustry\mods\`
    - Steam: `<Steam>\steamapps\common\Mindustry\saves\mods\`
-3. Restart the game and press **Roguedustry** in the main menu. Pick **New random map**, or one of the game's own maps.
+3. Restart the game and press **Roguedustry** in the main menu.
 
 Needs Mindustry v8 (build 154 or newer) on desktop.
 
 ## Playing
 
-- Fly your drone to place blocks. It can't attack.
-- The top-left panel shows the wave and enemies left. Press ▶ to send the next wave once the current one is cleared.
-- Below that: your level, XP, the blocks you have left, and **Auto waves**, which sends each wave automatically.
-- At the bottom: your copper and the **Shop** button.
+- The panel under the wave counter shows the map, its goal, and a **Research** button. Use this button, not the game's own tech tree.
+- The run is saved between maps. If you quit in the middle of a map, you can replay it from the start, or load its save from Load Game to carry on.
 
-## Random maps
+## Run report
 
-Each random map has a land path and a river that both lead from the far side to your core, so ground, naval and air enemies can all reach it. The only ore is copper, with a few patches close to the core. On the game's own maps, other ores are removed, and naval enemies only show up if the map has a spawn point on water.
-
-## Balance numbers
-
-Run `./balance.sh` to see, for each wave, how strong it is and what level you'll likely be. It also shows rough damage per second for each pack, pack prices, and how fast each drill mines. The numbers are estimates. They don't account for which turrets can hit air or ground, and support turrets like Wave and Segment show about 0 damage.
+Run `./report.sh` to see every campaign map with what it needs to unlock, the total research cost, and the list of modifiers. It takes a few seconds and doesn't open the game.
 
 ## Screenshot check
 
-Set `ROGUE_AUTOTEST=hud` and start the game. It plays one wave on a random map, saves a screenshot to `ROGUE_SHOTS` and quits. Point `APPDATA` at an empty folder so your own saves aren't touched.
+Set `ROGUE_AUTOTEST=hud` and start the game. It starts a new run on Ground Zero, opens the research window, pretends the map was cleared, picks a modifier, saves a screenshot of each step to `ROGUE_SHOTS` and quits. Point the game's data folder at an empty folder so your own saves aren't touched (`APPDATA` on Windows, `XDG_DATA_HOME` on Linux). The test deletes any saved run.
 
 ## Known limits
 
-- Loading a saved run starts it over.
 - Single player only.
-- Balance hasn't been tuned yet.
+- Research costs are the campaign's own, which assume items from many maps over many hours. Balance hasn't been tuned yet.
+- An Overdrive Projector's boost and a modifier's speed boost don't add up: the stronger one wins.
