@@ -20,7 +20,13 @@ Lose a single map and the run is over: you start again from Ground Zero. Each ma
 
 ### Terror and mutators
 
-Enemies get mutators, like in StarCraft II co-op. The terror level goes up by 1 for every map you clear. Each terror level adds 2 mutator points, and each mutator costs points, so later maps get more and nastier mutators. Each map shows its mutators before you pick it. There are 4 so far: Speed Freaks, Life Leech, Long Range and Just Die!.
+Enemies get mutators, like in StarCraft II co-op. The terror level goes up by 1 for every map you clear. Each terror level adds 2 mutator points, and each mutator costs points, so later maps get more and nastier mutators. Each map shows its mutators before you pick it. There are 15 so far:
+
+- Speed Freaks, Life Leech, Long Range, Just Die!
+- On death: Self Destruction, Mutually Assured Destruction (bosses), Walking Infested (ground units release the first unit of their line), Alien Incubation (the same for air units)
+- Enemy buffs: Barrier (a personal shield on the first hit), Avenger (grows bigger and stronger when allies die), Inspiration (bosses boost nearby enemies), Evasive Maneuvers (teleport forward when hit), Transmutation (rarely turns into the next unit of its line), Eminent Domain (your destroyed structures come back as enemy structures), Aggressive Deployment (an extra group between waves)
+
+Hover a mutator icon to read what it does. The icons are drawn by `tools/make-icons.py` (needs Python with Pillow).
 
 ## Install
 

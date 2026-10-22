@@ -29,7 +29,8 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 - `src/roguedustry/MapGen.java`: random maps with a land path and a river to the core
 - `src/roguedustry/RogueUI.java`: menu, map picker, relic and modifier picks, side panel
 - `src/roguedustry/TechTreeDialog.java`: the tech tree window, a copy of the game's research window that reads the run's unlocks
-- `tools/`: run report and source download script (not part of the mod)
+- `sprites/mutators/`: mutator icons, drawn by `tools/make-icons.py` in the style of the game's campaign map icons: 64x64, flat colors, and every edge straight or at exactly 45°
+- `tools/`: run report, icon script and source download script (not part of the mod)
 
 ## Game source
 - Official repo: https://github.com/Anuken/Mindustry, tag **v160.7**, the same version `build.sh` uses.
@@ -50,6 +51,7 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 - The game's "save on start" option makes a save of the map's start. During a run it is deleted, or a lost map could be replayed.
 - When a save loads, the slot it came from is only known one frame after the "world loaded" event.
 - The game's research window reads the real campaign's unlocks and can't be changed from a mod, so we draw our own.
+- A single unit's sprite can't be drawn bigger without leaking the scale into everything drawn after it. Avenger draws a bigger glowing copy behind the unit instead.
 - The tree layout keeps state in its nodes. Laying out the same nodes twice scatters them, so the tech tree window is rebuilt each time it opens.
 
 ## Several agents at once

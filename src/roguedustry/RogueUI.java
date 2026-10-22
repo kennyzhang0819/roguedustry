@@ -124,6 +124,20 @@ public class RogueUI{
         return list.isEmpty() ? "no mutators" : list.map(m -> m.name).toString(", ");
     }
 
+    static void mutatorIcons(Table table, Seq<Mutators.Mutator> list, float size, int perRow){
+        table.clear();
+        table.left();
+        if(list.isEmpty()){
+            table.add("[lightgray]none");
+            return;
+        }
+        int i = 0;
+        for(Mutators.Mutator m : list){
+            table.image(m.icon()).size(size).pad(2f).tooltip(m.name + ": " + m.description);
+            if(++i % perRow == 0) table.row();
+        }
+    }
+
     public void showMissions(){
         RogueRun run = run();
         boolean justCleared = state.isGame() && state.gameOver;
@@ -142,7 +156,9 @@ public class RogueUI{
                     card.add(m.name()).color(Pal.accent).row();
                     card.add(m.goal()).row();
                     card.add("Threat " + Strings.autoFixed(m.threat(), 1)).color(Color.lightGray).row();
-                    card.add("[scarlet]Mutators:[] " + mutatorText(mutators)).wrap().width(260f).row();
+                    card.add("[scarlet]Mutators:").padTop(4f).row();
+                    card.table(icons -> mutatorIcons(icons, mutators, 36f, 6)).left().row();
+                    if(mutators.any()) card.add("[lightgray]" + mutatorText(mutators)).wrap().width(260f).row();
                     card.button("Play", Icon.play, () -> start(m)).size(180f, 50f).padTop(6f);
                 }).width(300f).top();
                 if(++i % 3 == 0) p.row();
@@ -203,10 +219,16 @@ public class RogueUI{
         if(relic){
             Mission m = Mission.of(run.mission);
             c.add(m.name() + ": " + m.goal()).color(Pal.accent).row();
-            c.add("[scarlet]Terror " + run.terror() + "[]: " + mutatorText(run.mutators)).padBottom(4f).row();
-            for(Mutators.Mutator mutator : run.mutators){
-                c.add("[lightgray]" + mutator.name + ": " + mutator.description).row();
-            }
+            c.add("[scarlet]Terror " + run.terror() + (run.mutators.isEmpty() ? "[]: no mutators" : "")).padBottom(4f).row();
+            if(run.mutators.any()) c.pane(list -> {
+                for(Mutators.Mutator mutator : run.mutators){
+                    list.table(line -> {
+                        line.left();
+                        line.image(mutator.icon()).size(40f).padRight(8f);
+                        line.add("[scarlet]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(640f).left();
+                    }).left().pad(2f).row();
+                }
+            }).maxHeight(Math.min(260f, Core.graphics.getHeight() / Scl.scl() * 0.35f)).row();
             c.add("Pick one relic. It lasts for the rest of the run.").padTop(12f).padBottom(8f).row();
         }else{
             c.add("Pick one modifier. It lasts for the rest of the run.").padBottom(8f).row();
@@ -263,7 +285,20 @@ public class RogueUI{
             Mission m = Mission.of(run().mission);
             return "[accent]" + m.name() + "[]  " + m.goal();
         }).row();
-        panel.label(() -> RogueRun.active() ? "[scarlet]Terror " + run().terror() + "[]: " + mutatorText(run().mutators) : "").row();
+        panel.table(line -> {
+            line.left();
+            line.label(() -> RogueRun.active() ? "[scarlet]Terror " + run().terror() + "[] " : "");
+            Table icons = new Table();
+            String[] shown = {null};
+            icons.update(() -> {
+                if(!RogueRun.active()) return;
+                String now = run().mutators.toString();
+                if(now.equals(shown[0])) return;
+                shown[0] = now;
+                mutatorIcons(icons, run().mutators, 28f, 8);
+            });
+            line.add(icons).left();
+        }).left().row();
         panel.label(() -> {
             if(!RogueRun.active()) return "";
             RogueRun run = run();

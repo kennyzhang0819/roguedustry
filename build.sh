@@ -10,5 +10,5 @@ if [ ! -f "$GAME_JAR" ]; then
 fi
 rm -rf build/classes && mkdir -p build/classes
 javac -J-Duser.language=en --release 17 -nowarn -cp "$GAME_JAR" -d build/classes src/roguedustry/*.java
-jar cf build/Roguedustry.jar mod.hjson -C build/classes .
+jar cf build/Roguedustry.jar mod.hjson sprites -C build/classes .
 echo "Built build/Roguedustry.jar"

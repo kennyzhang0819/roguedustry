@@ -8,6 +8,7 @@ import arc.util.*;
 import mindustry.content.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
+import mindustry.world.*;
 
 import static mindustry.Vars.*;
 
@@ -41,6 +42,7 @@ public class AutoTest{
             Core.settings.remove(RogueRun.saveKey);
             RogueRun.current = RogueRun.create();
             RogueRun.current.startMission(new Mission(SectorPresets.groundZero));
+            RogueRun.current.mutators.set(Mutators.all);
         });
 
         Events.run(Trigger.newGame, () -> later(3f, this::onMissionLoaded));
@@ -78,17 +80,35 @@ public class AutoTest{
         later(9.5f, () -> state.wave = 3);
         later(10f, () -> shot("04-modifier"));
         later(11f, () -> rui.choose(0));
-        later(12f, () -> {
-            run.mutators.set(Mutators.all);
-            logic.runWave();
-        });
+        later(12f, () -> logic.runWave());
         later(14f, () -> {
             Seq<Unit> enemies = state.rules.waveTeam.data().units.copy();
             Log.info("[Rogue-Test] enemies=@ speed=@ longRange=@", enemies.size, enemies.count(u -> u.hasEffect(Mutators.speedEffect)), enemies.count(u -> u.controller() instanceof Mutators.LongRangeAI));
+            Unit first = enemies.first();
+            float x = first.x;
+            Mutators.onEnemyHit(first);
+            Log.info("[Rogue-Test] barrier shield=@ teleported=@", (int)first.shield, first.x != x);
             shot("05-hud");
-            enemies.each(Unit::kill);
+            Building core = state.rules.defaultTeam.core();
+            Tile spot = world.tile(core.tile.x + 6, core.tile.y);
+            spot.setNet(mindustry.content.Blocks.copperWall, state.rules.defaultTeam, 0);
+            spot.build.kill();
+            Unit second = enemies.get(1);
+            second.set(first.x + 8f, first.y);
         });
-        later(19f, () -> Log.info("[Rogue-Test] after kill: enemies=@ (revived)", Groups.unit.count(u -> u.team == state.rules.waveTeam)));
+        later(14.3f, () -> state.rules.waveTeam.data().units.first().kill());
+        later(14.8f, () -> {
+            Log.info("[Rogue-Test] after one kill: enemies=@ avenger=@", Groups.unit.count(u -> u.team == state.rules.waveTeam), Groups.unit.count(u -> u.team == state.rules.waveTeam && u.hasEffect(Mutators.avengerEffects[0])));
+            shot("05b-avenger");
+            Groups.unit.each(u -> u.team == state.rules.waveTeam, Unit::kill);
+        });
+        later(18f, () -> {
+            Building core = state.rules.defaultTeam.core();
+            Tile spot = world.tile(core.tile.x + 6, core.tile.y);
+            Log.info("[Rogue-Test] after 3s: enemies=@ (revived) captured wall team=@", Groups.unit.count(u -> u.team == state.rules.waveTeam), spot.team());
+            Mutators.deployTimer = 1e9f;
+        });
+        later(19f, () -> Log.info("[Rogue-Test] after deployment: enemies=@", Groups.unit.count(u -> u.team == state.rules.waveTeam)));
         later(20f, () -> {
             state.gameOver = true;
             Events.fire(new GameOverEvent(state.rules.defaultTeam));
