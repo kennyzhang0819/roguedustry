@@ -125,7 +125,7 @@ public class RogueUI{
 
         rewardDialog = new BaseDialog("[#" + curseColor + "]Curse");
         Table c = rewardDialog.cont;
-        c.add("Pick a [#" + curseColor + "]curse[]. It stays with you for the rest of the run.").padBottom(8f).row();
+        c.add("Pick a [#" + curseColor + "]curse[].").padBottom(8f).row();
 
         c.table(row -> {
             for(int i = 0; i < curses.size; i++){
@@ -156,7 +156,7 @@ public class RogueUI{
         rewardDialog = new BaseDialog(relic ? "[#" + Rewards.Rarity.relic.color + "]Relic" : "Modifier");
         Table c = rewardDialog.cont;
         String word = relic ? "[#" + Rewards.Rarity.relic.color + "]relic[]" : "modifier";
-        c.add("Pick a " + word + ". It stays with you for the rest of the run.").padBottom(8f).row();
+        c.add("Pick a " + word + ".").padBottom(8f).row();
 
         c.table(row -> {
             for(int i = 0; i < rewards.size; i++){
@@ -223,7 +223,7 @@ public class RogueUI{
     }
 
     void buildHud(){
-        Table panel = new Table(Styles.black6);
+        Table panel = new Table(Tex.wavepane);
         panel.name = "rogue-hud";
         panel.visible(() -> RogueRun.active() && ui.hudfrag.shown());
         panel.left();
