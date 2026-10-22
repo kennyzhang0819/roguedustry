@@ -5,7 +5,6 @@ import arc.graphics.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
 import arc.util.*;
-import mindustry.content.TechTree.*;
 import mindustry.core.GameState.*;
 import mindustry.game.*;
 import mindustry.game.EventType.*;
@@ -18,24 +17,14 @@ import mindustry.ui.dialogs.*;
 import static mindustry.Vars.*;
 
 public class RogueUI{
-    public @Nullable BaseDialog menuDialog, missionDialog, rewardDialog, overDialog, infoDialog;
-    public @Nullable TechTreeDialog researchDialog;
+    public @Nullable BaseDialog menuDialog, rewardDialog, infoDialog;
     static final Color curseColor = Color.valueOf("f25555");
     public Seq<Runnable> offered = new Seq<>();
+    int framesInMenu;
 
     public void init(){
         ui.menufrag.addButton("Roguedustry", Icon.play, this::showMenu);
         buildHud();
-
-        //the game's own game-over window opens 3 seconds after the end; ours replaces it during a run
-        ui.restart.shown(() -> Core.app.post(() -> {
-            RogueRun run = RogueRun.current;
-            if(run == null || !String.valueOf(run.id).equals(state.rules.tags.get(RogueRun.tag))) return;
-            ui.restart.hide(null);
-            if(run.over) showRunOver();
-            else showMissions();
-        }));
-
         Events.run(Trigger.update, this::update);
     }
 
@@ -44,42 +33,54 @@ public class RogueUI{
     }
 
     void update(){
-        if(!RogueRun.active() || state.gameOver || Core.scene.hasDialog()) return;
+        //a sector launch passes through the menu for a couple of frames, so only a longer stay there leaves the run
+        if(Profile.inRun() && state.isMenu() && !ui.planet.isShown()){
+            if(++framesInMenu > 60){
+                framesInMenu = 0;
+                RogueRun.leave();
+            }
+        }else{
+            framesInMenu = 0;
+        }
+
+        if(!RogueRun.active()) return;
+        //the game shows the sector name for 5 seconds after the landing animation, over any dialog
+        if(renderer.isCutscene()) run().loadedAt = Time.millis();
+        if(state.gameOver || Core.scene.hasDialog() || Time.timeSinceMillis(run().loadedAt) < 5500) return;
         if(run().pendingRelic) showReward(true);
         else if(run().pendingCurse) showCurse();
         else if(run().pendingModifiers > 0) showReward(false);
     }
 
     public void showMenu(){
-        if(run() == null || run().over) RogueRun.current = RogueRun.load();
-
         menuDialog = new BaseDialog("Roguedustry");
         Table c = menuDialog.cont;
         c.defaults().pad(4f);
 
-        if(run() == null){
-            c.add("Play through the campaign maps in order, starting with a locked tech tree.").row();
-            c.add("Pick a relic at the start of each map, and modifiers as the map goes on. They last the whole run.").row();
-            c.add("Every second map you also pick a [#" + curseColor + "]curse[] for the enemies. It lasts the whole run.").row();
-            c.add("Lose a single map and the run is over: you start again from Ground Zero.").color(Pal.remove).row();
-            c.add("Your normal campaign is not affected.").color(Color.lightGray).padBottom(10f).row();
-            if(RogueRun.best() > 0) c.add("Best run: " + RogueRun.best() + " maps cleared").color(Pal.accent).row();
-            c.button("Start a new run", Icon.play, () -> {
-                RogueRun.current = RogueRun.create();
+        c.add("The Serpulo campaign, with roguelike rewards and [#" + curseColor + "]curses[].").row();
+        c.add("Research is free. Each new sector gives a [#" + Rewards.Rarity.relic.color + "]relic[], every second one a [#" + curseColor + "]curse[].").row();
+        c.add("A modifier every 10 waves. All of them last the whole run.").row();
+        c.add("This is a separate campaign. Your own campaign is not touched.").color(Color.lightGray).padBottom(10f).row();
+
+        if(RogueRun.exists()){
+            c.button("Continue run", Icon.play, () -> {
                 menuDialog.hide();
-                showMissions();
-            }).size(320f, 64f);
-        }else{
-            c.add("Run in progress: " + run().missionsCleared + " maps cleared, " + run().mutators.size + " curses").color(Pal.accent).row();
-            c.add(rewardSummary()).color(Color.lightGray).wrap().width(600f).padBottom(10f).row();
-            c.button(run().mission != null ? "Continue " + Mission.of(run().mission).name() : "Continue", Icon.play, () -> {
-                menuDialog.hide();
-                if(run().mission != null) resume();
-                else showMissions();
+                RogueRun.enter();
+                ui.planet.show();
             }).size(360f, 64f).row();
-            c.button("Abandon this run", Icon.trash, () -> ui.showConfirm("Abandon run", "This run will be lost. Are you sure?", () -> {
-                run().lose();
-                RogueRun.current = null;
+        }
+        c.button("Start a new run", Icon.add, () -> {
+            Runnable start = () -> {
+                menuDialog.hide();
+                RogueRun.startNew();
+                ui.planet.show();
+            };
+            if(RogueRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", start);
+            else start.run();
+        }).size(360f, 64f).row();
+        if(RogueRun.exists()){
+            c.button("Abandon run", Icon.trash, () -> ui.showConfirm("Abandon run", "This run will be lost. Are you sure?", () -> {
+                RogueRun.abandon();
                 menuDialog.hide();
                 showMenu();
             })).size(360f, 50f);
@@ -87,39 +88,6 @@ public class RogueUI{
 
         menuDialog.addCloseButton();
         menuDialog.show();
-    }
-
-    void resume(){
-        Saves.SaveSlot slot = run().saveSlot();
-        if(slot == null){
-            String name = Mission.of(run().mission).name();
-            run().lose();
-            RogueRun.current = null;
-            ui.showInfo("The save for " + name + " is gone, so the run is over.");
-            return;
-        }
-        ui.loadAnd(() -> {
-            try{
-                net.reset();
-                slot.load();
-                state.rules.editor = false;
-                state.rules.sector = null;
-                state.set(State.playing);
-            }catch(Throwable e){
-                Log.err(e);
-                logic.reset();
-                ui.showException("Could not load the save for this map", e);
-            }
-        });
-    }
-
-    String rewardSummary(){
-        if(run().rewards.isEmpty()) return "No relics or modifiers yet.";
-        Seq<String> parts = new Seq<>();
-        for(var e : run().rewards){
-            parts.add(e.key.name + (e.value > 1 ? " x" + e.value : ""));
-        }
-        return parts.toString(", ");
     }
 
     static void mutatorIcons(Table table, Seq<Mutators.Mutator> list, float size, int perRow){
@@ -134,64 +102,6 @@ public class RogueUI{
             table.image(m.icon()).size(size).pad(2f).tooltip(m.name + ": " + m.description);
             if(++i % perRow == 0) table.row();
         }
-    }
-
-    public void showMissions(){
-        RogueRun run = run();
-        boolean justCleared = state.isGame() && state.gameOver;
-        missionDialog = new BaseDialog(justCleared ? "Map cleared!" : "Choose your next map");
-        Table c = missionDialog.cont;
-
-        c.add("Maps cleared: " + run.missionsCleared).color(Pal.accent).row();
-        c.table(line -> {
-            line.add("[#" + curseColor + "]Curses: ");
-            line.table(icons -> mutatorIcons(icons, run.mutators, 32f, 10));
-        }).padBottom(8f).row();
-
-        c.pane(p -> {
-            p.defaults().pad(6f);
-            int i = 0;
-            for(Mission m : run.missionChoices()){
-                p.table(Styles.black6, card -> {
-                    card.margin(10f).left().defaults().left();
-                    card.add(m.name()).color(Pal.accent).row();
-                    card.add(m.goal()).row();
-                    card.add("Threat " + Strings.autoFixed(m.threat(), 1)).color(Color.lightGray).row();
-                    card.button("Play", Icon.play, () -> start(m)).size(180f, 50f).padTop(6f);
-                }).width(300f).top();
-                if(++i % 3 == 0) p.row();
-            }
-        }).maxHeight(380f).row();
-
-        Seq<TechNode> locked = Tech.lockedSectors(run);
-        if(locked.any()){
-            c.add("Still locked").color(Color.lightGray).padTop(12f).row();
-            c.pane(p -> {
-                p.left().defaults().left().pad(2f);
-                for(TechNode node : locked){
-                    p.add("[lightgray]" + node.content.localizedName + ": []needs " + Tech.missingText(run, node)).wrap().width(760f).row();
-                }
-            }).maxHeight(180f).width(780f).row();
-        }
-
-        missionDialog.buttons.defaults().size(220f, 60f);
-        missionDialog.buttons.button("Tech tree", Icon.tree, this::showResearch);
-        missionDialog.buttons.button("Main menu", Icon.exit, () -> {
-            missionDialog.hide();
-            if(state.isGame()) logic.reset();
-        });
-        missionDialog.show();
-    }
-
-    void start(Mission m){
-        if(missionDialog != null) missionDialog.hide();
-        run().startMission(m);
-    }
-
-    public void showResearch(){
-        //the tree layout keeps state in its nodes, so a fresh window is built each time
-        researchDialog = new TechTreeDialog();
-        researchDialog.show();
     }
 
     static void pauseWhileShown(BaseDialog dialog){
@@ -274,27 +184,12 @@ public class RogueUI{
         rewardDialog.hide();
     }
 
-    void showRunOver(){
-        overDialog = new BaseDialog("Run over");
-        overDialog.cont.add("Your core was destroyed. The run is over.").row();
-        overDialog.cont.add("Maps cleared: " + run().missionsCleared).color(Pal.accent).row();
-        overDialog.cont.add("Best run: " + RogueRun.best()).color(Color.lightGray).row();
-        overDialog.buttons.button("Main menu", Icon.exit, () -> {
-            overDialog.hide();
-            RogueRun.current = null;
-            logic.reset();
-        }).size(220f, 60f);
-        overDialog.show();
-    }
-
     public void showRunInfo(){
         RogueRun run = run();
-        if(!RogueRun.active() || run.mission == null) return;
+        if(!RogueRun.active()) return;
         infoDialog = new BaseDialog("Run");
         Table c = infoDialog.cont;
-        Mission m = Mission.of(run.mission);
-        c.add(m.name() + ": " + m.goal()).color(Pal.accent).row();
-        c.add("Maps cleared: " + run.missionsCleared + "   Next modifier after wave " + (run.mapPicks + 1) * Rewards.wavesPerModifier).color(Color.lightGray).padBottom(8f).row();
+        c.add("Next modifier after wave " + run.nextModifierWave()).color(Color.lightGray).padBottom(8f).row();
 
         c.pane(list -> {
             list.left().defaults().left().pad(2f);
@@ -328,13 +223,12 @@ public class RogueUI{
     }
 
     void buildHud(){
-        Table panel = new Table();
+        Table panel = new Table(Styles.black6);
         panel.name = "rogue-hud";
         panel.visible(() -> RogueRun.active() && ui.hudfrag.shown());
         panel.left();
         panel.defaults().height(40f).growX();
         panel.button("Run", Icon.book, Styles.cleart, this::showRunInfo);
-        panel.button("Tech tree", Icon.tree, Styles.cleart, this::showResearch);
 
         Table waves = ui.hudGroup.find("waves");
         if(waves != null){

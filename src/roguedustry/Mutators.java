@@ -300,9 +300,9 @@ public class Mutators{
     }
 
     static void later(float delay, Runnable action){
-        String run = state.rules.tags.get(RogueRun.tag);
+        var sector = state.rules.sector;
         Time.run(delay, () -> {
-            if(RogueRun.active() && !state.gameOver && run.equals(state.rules.tags.get(RogueRun.tag))) action.run();
+            if(RogueRun.active() && !state.gameOver && state.rules.sector == sector) action.run();
         });
     }
 

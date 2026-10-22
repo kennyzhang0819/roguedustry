@@ -2,7 +2,7 @@ name: "roguedustry"
 displayName: "Roguedustry"
 author: "kennyzhang0819"
 main: "roguedustry.RoguedustryMod"
-description: "Roguelike run through the Serpulo campaign. Start with a locked tech tree, collect relics and modifiers, curse the enemies with a new mutator every map, and start over if you lose a single map. Your normal campaign is not affected."
+description: "Roguelike layer on the Serpulo campaign. Free research, a relic on every new sector, curses for the enemies and modifiers as you clear waves. Plays in a separate campaign, so your own campaign is not affected."
 version: "0.1.0"
 minGameVersion: "154"
 java: true

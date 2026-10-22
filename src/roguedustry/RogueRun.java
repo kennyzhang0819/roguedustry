@@ -5,154 +5,110 @@ import arc.math.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
-import mindustry.ctype.*;
-import mindustry.game.*;
+import mindustry.content.TechTree.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
-import mindustry.maps.*;
 import mindustry.type.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.ForceProjector.*;
 import mindustry.world.blocks.production.Drill.*;
-import mindustry.world.blocks.units.*;
-import mindustry.world.blocks.units.Reconstructor.*;
-import mindustry.world.blocks.units.UnitFactory.*;
 
 import static mindustry.Vars.*;
 
 public class RogueRun{
-    public static final String tag = "roguedustry", saveKey = "roguedustry-run", bestKey = "roguedustry-best";
+    public static final String saveKey = "roguedustry-run";
 
     public static @Nullable RogueRun current;
-    static boolean starting;
+    static final ObjectMap<TechNode, ItemStack[]> realCosts = new ObjectMap<>();
 
     public long id;
-    public int missionsCleared, endless;
-    public final ObjectSet<UnlockableContent> unlocked = new ObjectSet<>();
-    public final ObjectSet<SectorPreset> cleared = new ObjectSet<>();
+    public int launches, picksTaken;
     public final ObjectIntMap<Rewards.Reward> rewards = new ObjectIntMap<>();
     public final Seq<Mutators.Mutator> mutators = new Seq<>();
-    public @Nullable String mission, slot;
-    public boolean over, pendingCurse, pendingRelic;
-    public int pendingModifiers, mapPicks, picksTaken;
+    public final IntIntMap sectorPicks = new IntIntMap();
+    public boolean pendingCurse, pendingRelic;
+    public int pendingModifiers;
+    public long loadedAt;
 
-    public int techVersion;
-    float effectTimer, warnTimer, cleanupTimer;
+    float effectTimer, unlockTimer, cleanupTimer;
     final IntFloatMap lastShield = new IntFloatMap(), lastBuildup = new IntFloatMap();
 
-    public static RogueRun create(){
+    public static boolean exists(){
+        return Core.settings.has(saveKey);
+    }
+
+    public static void startNew(){
+        if(Profile.inRun()) leave();
+        Profile.deleteRun();
         RogueRun run = new RogueRun();
         run.id = Math.abs(new Rand().nextLong());
-        run.unlocked.addAll(Tech.starting());
-        Tech.autoUnlock(run);
         run.save();
-        return run;
+        enter();
+    }
+
+    public static void enter(){
+        current = load();
+        if(current == null) return;
+        Profile.switchTo(Profile.run);
+        for(TechNode node : TechTree.all){
+            if(node.rootNode != Planets.serpulo.techTree && node != Planets.serpulo.techTree) continue;
+            realCosts.put(node, node.requirements);
+            node.setupRequirements(ItemStack.empty);
+        }
+        control.checkAutoUnlocks();
+        lockSectors();
+    }
+
+    public static void leave(){
+        for(var e : realCosts) e.key.requirements = e.value;
+        realCosts.clear();
+        Profile.switchTo(Profile.player);
+        Planets.serpulo.allowLaunchToNumbered = true;
+        current = null;
+    }
+
+    public static void abandon(){
+        if(Profile.inRun()) leave();
+        Profile.deleteRun();
+        Core.settings.remove(saveKey);
+        current = null;
+    }
+
+    static void lockSectors(){
+        Planets.serpulo.allowLaunchToNumbered = SectorPresets.planetaryTerminal.sector.isCaptured();
     }
 
     public static boolean active(){
-        return current != null && state.isGame() && !current.over && String.valueOf(current.id).equals(state.rules.tags.get(tag));
+        return current != null && Profile.inRun() && state.isGame() && state.isCampaign();
     }
 
     public int stacks(Rewards.Reward reward){
         return rewards.get(reward, 0);
     }
 
-    public @Nullable SectorPreset missionPreset(){
-        return mission == null ? null : Mission.of(mission).preset;
-    }
-
-    public Seq<Mission> missionChoices(){
-        Seq<Mission> out = Tech.playableSectors(this).map(Mission::new);
-        if(Tech.campaignBeaten(this)){
-            Rand rand = new Rand(id + missionsCleared * 31L);
-            for(int i = 0; i < 2; i++){
-                out.add(new Mission(rand.nextInt(Integer.MAX_VALUE), endless));
-            }
-        }
-        return out;
-    }
-
-    public void startMission(Mission m){
-        mission = m.key();
-        pendingCurse = missionsCleared % 2 == 1 && curseOffer().any();
+    void onLaunch(){
+        launches++;
         pendingRelic = Rewards.rollRelics(rewards, mutators.size, new Rand()).any();
-        mapPicks = 0;
-        slot = null;
+        pendingCurse = launches % 2 == 0 && curseOffer().any();
         save();
-
-        Rules rules = m.rules();
-        rules.tags.put(tag, String.valueOf(id));
-        rules.disableUnitCap = true;
-        syncWhitelist(rules);
-
-        starting = true;
-        control.playMap(m.map(), rules);
+        Log.info("[Rogue] Launched to @ (launch @)", state.rules.sector.name(), launches);
     }
 
-    void onMissionStarted(){
-        Mission m = Mission.of(mission);
-        //playMap() swaps in the wave list of the previous world, so generated maps set theirs again here
-        if(m.preset == null) state.rules.spawns = m.rules().spawns;
-        if(!headless){
-            //the game's "save on start" option makes a copy of the map's start, which would let a lost map be replayed
-            if(control.saves.getCurrent() != null) control.saves.getCurrent().delete();
-            slot = control.saves.addSave("Roguedustry - " + m.name()).file.name();
-        }
-        Log.info("[Rogue] Mission '@' started. Mutators: @", mission, mutators.map(x -> x.name));
-        onMissionLoaded();
-    }
-
-    void onMissionLoaded(){
+    void onLoaded(){
+        loadedAt = Time.millis();
         state.rules.disableUnitCap = true;
-        markProduced();
-        int count = Tech.autoUnlock(this);
-        save();
-        techVersion++;
-        syncWhitelist(state.rules);
-        if(count > 0 && !headless) ui.showInfoToast(count + " new tech tree nodes unlocked", 4f);
-    }
-
-    public @Nullable Saves.SaveSlot saveSlot(){
-        return slot == null ? null : control.saves.getSaveSlots().find(s -> s.file.name().equals(slot));
-    }
-
-    void deleteSlot(){
-        Saves.SaveSlot save = saveSlot();
-        if(save != null) save.delete();
-        slot = null;
-    }
-
-    void onGameOver(Team winner){
-        if(over) return;
-        boolean won = winner == state.rules.defaultTeam;
-        deleteSlot();
-        if(won){
-            countPicks();
-            Mission m = Mission.of(mission);
-            if(m.preset != null) cleared.add(m.preset);
-            else endless++;
-            missionsCleared++;
-            mission = null;
-            pendingCurse = pendingRelic = false;
-            Tech.autoUnlock(this);
-            save();
-            Log.info("[Rogue] Mission cleared. @ cleared so far", missionsCleared);
-        }else{
-            lose();
+        for(Block block : content.blocks()){
+            if(disabled(block)) state.rules.bannedBlocks.add(block);
         }
-        techVersion++;
+        if(!headless) ui.hudfrag.blockfrag.rebuild();
     }
 
-    public void lose(){
-        over = true;
-        deleteSlot();
-        Core.settings.put(bestKey, Math.max(best(), missionsCleared));
-        Core.settings.remove(saveKey);
-        Log.info("[Rogue] Run over after @ missions", missionsCleared);
+    public static boolean disabled(Block block){
+        return block.category == Category.logic;
     }
 
     public Seq<Mutators.Mutator> curseOffer(){
-        return Mutators.offer(mutators, new Rand(id * 4421L + missionsCleared * 104729L));
+        return Mutators.offer(mutators, new Rand(id * 4421L + launches * 104729L));
     }
 
     public void curse(@Nullable Mutators.Mutator mutator){
@@ -166,7 +122,7 @@ public class RogueRun{
     }
 
     public Seq<Rewards.Reward> relicOffer(){
-        return Rewards.rollRelics(rewards, mutators.size, new Rand(id * 7919L + missionsCleared * 104729L));
+        return Rewards.rollRelics(rewards, mutators.size, new Rand(id * 7919L + launches * 104729L));
     }
 
     public Seq<Rewards.Reward> modifierOffer(){
@@ -184,7 +140,7 @@ public class RogueRun{
         }
         rewards.increment(reward);
         if(reward == Rewards.absolution){
-            Rand rand = new Rand(id * 31L + missionsCleared);
+            Rand rand = new Rand(id * 31L + launches);
             for(int i = 0; i < 2 && mutators.any(); i++){
                 Mutators.Mutator lifted = mutators.remove(rand.random(mutators.size - 1));
                 Mutators.lifted(lifted);
@@ -201,33 +157,21 @@ public class RogueRun{
         save();
     }
 
-    void syncWhitelist(Rules rules){
-        rules.blockWhitelist = true;
-        rules.hideBannedBlocks = true;
-        rules.bannedBlocks.clear();
-        for(Block block : content.blocks()){
-            if(block.techNode != null && unlocked.contains(block) && !Tech.disabled(block)) rules.bannedBlocks.add(block);
-        }
-        if(!headless && state.isGame()) ui.hudfrag.blockfrag.rebuild();
+    public int wavesCleared(){
+        return state.enemies == 0 ? state.wave : Math.max(state.wave - 1, 0);
     }
 
-    void markProduced(){
-        boolean any = false;
-        for(Building build : state.rules.defaultTeam.data().buildings){
-            if(build.items != null){
-                for(Item item : content.items()){
-                    if(build.items.has(item) && unlocked.add(item)) any = true;
-                }
-            }
-            if(build.liquids != null && build.liquids.currentAmount() > 0.01f && unlocked.add(build.liquids.current())) any = true;
-        }
-        if(any){
-            int count = Tech.autoUnlock(this);
-            if(count > 0 && !headless) ui.showInfoToast(count + " new tech tree nodes unlocked", 4f);
-            save();
-            techVersion++;
-            syncWhitelist(state.rules);
-        }
+    public int nextModifierWave(){
+        return (sectorPicks.get(state.rules.sector.id, 0) + 1) * Rewards.wavesPerModifier;
+    }
+
+    void countPicks(){
+        if(!state.rules.waves) return;
+        int sector = state.rules.sector.id, earned = wavesCleared() / Rewards.wavesPerModifier, had = sectorPicks.get(sector, 0);
+        if(earned <= had) return;
+        pendingModifiers += earned - had;
+        sectorPicks.put(sector, earned);
+        save();
     }
 
     void update(){
@@ -235,11 +179,13 @@ public class RogueRun{
 
         updateShields();
 
+        if((unlockTimer += Time.delta) >= 120f){
+            unlockTimer = 0f;
+            control.checkAutoUnlocks();
+        }
+
         if((effectTimer += Time.delta) < 30f) return;
         effectTimer = 0f;
-        warnTimer -= 30f;
-
-        markProduced();
 
         countPicks();
 
@@ -258,29 +204,7 @@ public class RogueRun{
                 drill.items.each((item, amount) -> core.items.add(item, Math.min(amount, core.getMaximumAccepted(item) - core.items.get(item))));
                 drill.items.clear();
             }
-
-            UnitType making = build instanceof UnitFactoryBuild f && f.currentPlan >= 0 ? ((UnitFactory)f.block).plans.get(f.currentPlan).unit :
-                build instanceof ReconstructorBuild r && r.constructing() ? r.upgrade(r.payload.unit.type) : null;
-            if(making != null && !Tech.usable(this, making)){
-                ((UnitBlock.UnitBuild)build).progress = 0f;
-                if(warnTimer <= 0f && !headless){
-                    warnTimer = 60f * 10f;
-                    ui.showInfoToast(making.localizedName + " isn't researched yet", 3f);
-                }
-            }
         }
-    }
-
-    public int wavesCleared(){
-        return state.enemies == 0 ? state.wave : Math.max(state.wave - 1, 0);
-    }
-
-    void countPicks(){
-        int earned = wavesCleared() / Rewards.wavesPerModifier;
-        if(earned <= mapPicks) return;
-        pendingModifiers += earned - mapPicks;
-        mapPicks = earned;
-        save();
     }
 
     void updateShields(){
@@ -308,25 +232,18 @@ public class RogueRun{
         }
     }
 
-    public static int best(){
-        return Core.settings.getInt(bestKey, 0);
-    }
-
     public void save(){
         StringBuilder out = new StringBuilder();
         out.append("id=").append(id).append('\n');
-        out.append("missions=").append(missionsCleared).append('\n');
-        out.append("endless=").append(endless).append('\n');
+        out.append("launches=").append(launches).append('\n');
         out.append("curse=").append(pendingCurse).append('\n');
         out.append("relic=").append(pendingRelic).append('\n');
         out.append("modpicks=").append(pendingModifiers).append('\n');
-        out.append("mappicks=").append(mapPicks).append('\n');
         out.append("taken=").append(picksTaken).append('\n');
-        if(mission != null) out.append("mission=").append(mission).append('\n');
-        if(slot != null) out.append("slot=").append(slot).append('\n');
         out.append("mutators=").append(mutators.map(m -> m.id).toString(",")).append('\n');
-        out.append("unlocked=").append(unlocked.toSeq().map(RogueRun::key).toString(",")).append('\n');
-        out.append("cleared=").append(cleared.toSeq().map(c -> c.name).toString(",")).append('\n');
+        out.append("sectorpicks=");
+        for(var e : sectorPicks) out.append(e.key).append(':').append(e.value).append(',');
+        out.append('\n');
         out.append("rewards=");
         for(var e : rewards) out.append(e.key.id).append(':').append(e.value).append(',');
         out.append('\n');
@@ -344,31 +261,21 @@ public class RogueRun{
                 String k = line.substring(0, eq), v = line.substring(eq + 1);
                 switch(k){
                     case "id" -> run.id = Long.parseLong(v);
-                    case "missions" -> run.missionsCleared = Integer.parseInt(v);
-                    case "endless" -> run.endless = Integer.parseInt(v);
+                    case "launches" -> run.launches = Integer.parseInt(v);
                     case "curse" -> run.pendingCurse = Boolean.parseBoolean(v);
                     case "relic" -> run.pendingRelic = Boolean.parseBoolean(v);
                     case "modpicks" -> run.pendingModifiers = Integer.parseInt(v);
-                    case "mappicks" -> run.mapPicks = Integer.parseInt(v);
                     case "taken" -> run.picksTaken = Integer.parseInt(v);
-                    case "mission" -> run.mission = v;
-                    case "slot" -> run.slot = v;
                     case "mutators" -> {
                         for(String s : list(v)){
                             Mutators.Mutator m = Mutators.get(s);
                             if(m != null) run.mutators.add(m);
                         }
                     }
-                    case "unlocked" -> {
+                    case "sectorpicks" -> {
                         for(String s : list(v)){
-                            UnlockableContent c = fromKey(s);
-                            if(c != null) run.unlocked.add(c);
-                        }
-                    }
-                    case "cleared" -> {
-                        for(String s : list(v)){
-                            SectorPreset p = content.sector(s);
-                            if(p != null) run.cleared.add(p);
+                            String[] parts = s.split(":");
+                            run.sectorPicks.put(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
                         }
                     }
                     case "rewards" -> {
@@ -391,49 +298,23 @@ public class RogueRun{
         return Seq.with(v.split(",")).select(s -> !s.isEmpty());
     }
 
-    static String key(UnlockableContent c){
-        return c.getContentType().name() + "/" + c.name;
-    }
-
-    static @Nullable UnlockableContent fromKey(String key){
-        String[] parts = key.split("/", 2);
-        if(parts.length < 2) return null;
-        try{
-            return content.getByName(ContentType.valueOf(parts[0]), parts[1]) instanceof UnlockableContent u ? u : null;
-        }catch(IllegalArgumentException e){
-            return null;
-        }
-    }
-
     static void registerEvents(){
-        Events.run(Trigger.newGame, () -> {
-            if(!starting || current == null || !state.rules.tags.containsKey(tag)) return;
-            starting = false;
-            current.onMissionStarted();
+        Events.on(ClientLoadEvent.class, e -> {
+            //a run's campaign is still live if the game was closed during a run
+            if(Profile.inRun()) leave();
         });
 
-        //playMap() sets the new rules only after this event, so fresh missions are handled on newGame instead
-        Events.on(WorldLoadEvent.class, e -> {
-            if(starting || !state.rules.tags.containsKey(tag)) return;
-            RogueRun saved = load();
-            String runId = state.rules.tags.get(tag);
-            current = null;
-            //the loaded slot is only known after this event, so the check waits a frame
-            Core.app.post(() -> {
-                Saves.SaveSlot loaded = control.saves.getCurrent();
-                if(saved != null && String.valueOf(saved.id).equals(runId) && saved.mission != null && loaded != null && loaded.file.name().equals(saved.slot)){
-                    current = saved;
-                    current.onMissionLoaded();
-                }else{
-                    Log.info("[Rogue] This save can't continue a run");
-                    if(!headless) ui.showInfoToast("Only a run's own save can continue it. This is a normal game.", 5f);
-                }
-            });
+        Events.on(SectorLaunchEvent.class, e -> {
+            if(current != null && Profile.inRun()) current.onLaunch();
         });
 
-        Events.on(GameOverEvent.class, e -> {
-            if(active()) current.onGameOver(e.winner);
+        Events.on(SectorCaptureEvent.class, e -> {
+            if(current != null && Profile.inRun()) lockSectors();
         });
+
+        Events.on(WorldLoadEvent.class, e -> Core.app.post(() -> {
+            if(active()) current.onLoaded();
+        }));
 
         Events.on(UnitCreateEvent.class, e -> {
             if(active() && e.unit.team == state.rules.defaultTeam && current.stacks(Rewards.ironLegion) > 0 && Rewards.ironLegionType(e.unit.type)){

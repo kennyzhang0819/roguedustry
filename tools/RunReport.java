@@ -1,10 +1,10 @@
 package roguedustry;
 
-import arc.struct.*;
 import mindustry.*;
-import mindustry.content.TechTree.*;
+import mindustry.content.*;
 import mindustry.core.*;
 import mindustry.type.*;
+import mindustry.world.*;
 
 public class RunReport{
 
@@ -13,37 +13,32 @@ public class RunReport{
         Vars.content = new ContentLoader();
         Vars.content.createBaseContent();
 
-        RogueRun run = new RogueRun();
-        run.unlocked.addAll(Tech.starting());
-        Tech.autoUnlock(run);
-
-        System.out.println("== Campaign maps ==");
-        System.out.println("(what each map needs before it can be played)");
-        for(TechNode node : Tech.nodes()){
-            if(node.content instanceof SectorPreset p){
-                String wave = p.captureWave > 0 ? "survive " + p.captureWave : "destroy base";
-                System.out.printf("%-22s threat %4.1f  %-13s needs: %s%n", p.name, p.difficulty, wave, node.objectives.map(Tech::describe).toString(", "));
-            }
+        System.out.println("== Campaign sectors ==");
+        System.out.println("(other sectors stay locked until " + SectorPresets.planetaryTerminal.localizedName + " is captured)");
+        for(SectorPreset p : Vars.content.sectors()){
+            if(p.planet != Planets.serpulo) continue;
+            String goal = p.captureWave > 0 ? "survive " + p.captureWave + " waves" : "destroy the base";
+            System.out.printf("%-26s threat %4.1f  %s%n", p.localizedName, p.difficulty, goal);
         }
 
         System.out.println();
-        System.out.println("== Tech tree ==");
-        System.out.println("(research is free: a node unlocks as soon as its map, items and earlier nodes are done)");
-        System.out.println(Tech.nodes().count(n -> !(n.content instanceof SectorPreset)) + " nodes. Unlocked at the start: " + Tech.unlockedNodes(run).map(n -> n.content.name));
+        System.out.println("== Disabled blocks ==");
+        for(Block block : Vars.content.blocks()){
+            if(RogueRun.disabled(block)) System.out.println(block.localizedName);
+        }
 
         System.out.println();
         System.out.println("== Relics and modifiers ==");
-        System.out.println("(a relic pick at the start of each map, a modifier pick every " + Rewards.wavesPerModifier + " waves cleared)");
+        System.out.println("(a relic pick on each new sector, a modifier pick every " + Rewards.wavesPerModifier + " waves cleared on a sector)");
         for(Rewards.Reward r : Rewards.all){
             System.out.printf("%-9s %-18s max %d  %s%n", r.rarity.label, r.name, r.max, r.description);
         }
 
         System.out.println();
-        System.out.println("== Enemy mutators ==");
+        System.out.println("== Curses ==");
+        System.out.println("(a pick of 3 on every second new sector, kept for the whole run)");
         for(Mutators.Mutator m : Mutators.all){
             System.out.printf("%-28s %s%n", m.name, m.description);
         }
-        System.out.println();
-        System.out.println("At the start of each map the player gives the enemies 1 of 3 mutators they don't have yet. They keep it for the whole run.");
     }
 }
