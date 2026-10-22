@@ -67,7 +67,7 @@ public class AutoTest{
         later(7.3f, () -> {
             var view = rui.researchDialog.view;
             for(var e : view.getChildren()){
-                if(e instanceof ImageButton b && b.userObject == mindustry.content.Blocks.scatter.techNode){
+                if(view.hoverNode == null && e instanceof ImageButton b && b.visible && b.x > 100f && b.y > 100f && b.x < Core.graphics.getWidth() - 300f && !RogueRun.current.unlocked.contains(((mindustry.content.TechTree.TechNode)b.userObject).content)){
                     view.hoverNode = b;
                     view.rebuild();
                 }

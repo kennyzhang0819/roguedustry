@@ -5,6 +5,7 @@ A roguelike run through the Mindustry v8 campaign. The game itself is unchanged:
 - Play the Serpulo campaign maps one after another, starting with a locked tech tree.
 - Research is free. A tech tree node unlocks as soon as the campaign would allow it: when you enter or clear a map, when you first get an item, or when the nodes before it are unlocked. Maps open up the same way.
 - After you beat Planetary Launch Terminal, random maps open up and the run goes on as long as you last.
+- Processors and the other logic blocks are left out of the run.
 - Your normal campaign progress is never touched.
 
 ### Losing
@@ -33,7 +34,7 @@ Needs Mindustry v8 (build 154 or newer) on desktop.
 
 ## Playing
 
-- The panel under the wave counter shows the map and its goal, the terror level and mutators, how far you are toward the next modifier, and a **Tech tree** button. It opens the campaign's tech tree without costs: yellow nodes are unlocked, red ones are locked, and hovering a node shows what it still needs. Use this button, not the game's own tech tree.
+- The panel under the wave counter shows the map and its goal, the terror level and mutators, how far you are toward the next modifier, and a **Tech tree** button. It opens the campaign's tech tree without costs. Like in the campaign, locked nodes show a padlock and "???", and hovering a node shows what it still needs. Use this button, not the game's own tech tree.
 
 ## Run report
 

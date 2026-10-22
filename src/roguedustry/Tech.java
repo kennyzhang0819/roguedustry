@@ -1,18 +1,29 @@
 package roguedustry;
 
 import arc.struct.*;
+import arc.util.*;
 import mindustry.content.*;
 import mindustry.content.TechTree.*;
 import mindustry.ctype.*;
 import mindustry.game.Objectives.*;
 import mindustry.type.*;
+import mindustry.world.*;
 
 public class Tech{
 
     public static Seq<TechNode> nodes(){
         Seq<TechNode> out = new Seq<>();
-        Planets.serpulo.techTree.each(out::add);
+        Planets.serpulo.techTree.each(n -> {
+            if(!removed(n)) out.add(n);
+        });
         return out;
+    }
+
+    public static boolean removed(TechNode node){
+        for(TechNode n = node; n != null; n = n.parent){
+            if(n.content instanceof Block b && b.category == Category.logic) return true;
+        }
+        return false;
     }
 
     public static boolean done(RogueRun run, Objective o){
@@ -34,11 +45,19 @@ public class Tech{
     }
 
     public static String describe(Objective o){
-        if(o instanceof Research r) return (r.content instanceof Item || r.content instanceof Liquid ? "get " : "unlock ") + r.content.localizedName;
-        if(o instanceof Produce p) return "get " + p.content.localizedName;
+        return describe(null, o);
+    }
+
+    public static String describe(@Nullable RogueRun hideLocked, Objective o){
+        if(o instanceof Research r) return (r.content instanceof Item || r.content instanceof Liquid ? "get " : "unlock ") + name(hideLocked, r.content);
+        if(o instanceof Produce p) return "get " + name(hideLocked, p.content);
         if(o instanceof SectorComplete s) return "clear " + s.preset.localizedName;
         if(o instanceof OnSector s) return "play " + s.preset.localizedName;
         return o.toString();
+    }
+
+    static String name(@Nullable RogueRun hideLocked, UnlockableContent content){
+        return hideLocked != null && !hideLocked.unlocked.contains(content) ? "???" : content.localizedName;
     }
 
     public static String missingText(RogueRun run, TechNode node){

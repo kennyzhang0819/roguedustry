@@ -1,6 +1,6 @@
 # Roguedustry
 
-A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree. Research is free: each node unlocks as soon as its campaign requirements are met. The player picks a relic at the start of each map and modifiers during it; both last the whole run. Enemies get StarCraft II co-op style mutators, paid for with points from a terror level that rises every map. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
+A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks (processors, memory, displays and so on) are left out of the run. The player picks a relic at the start of each map and modifiers during it; both last the whole run. Enemies get StarCraft II co-op style mutators, paid for with points from a terror level that rises every map. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
 
 Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Mutators should be very punishing.
 

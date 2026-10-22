@@ -193,7 +193,7 @@ public class RogueRun{
         rules.hideBannedBlocks = true;
         rules.bannedBlocks.clear();
         for(Block block : content.blocks()){
-            if(block.techNode != null && unlocked.contains(block)) rules.bannedBlocks.add(block);
+            if(block.techNode != null && unlocked.contains(block) && !Tech.removed(block.techNode)) rules.bannedBlocks.add(block);
         }
         if(!headless && state.isGame()) ui.hudfrag.blockfrag.rebuild();
     }

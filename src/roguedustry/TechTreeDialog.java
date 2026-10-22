@@ -106,6 +106,10 @@ public class TechTreeDialog extends BaseDialog{
         return run() != null && run().unlocked.contains(node.content);
     }
 
+    static boolean selectable(TechNode node){
+        return unlocked(node) || run() != null && Tech.missing(run(), node).isEmpty();
+    }
+
     boolean showNode(Node node){
         return node.parent == null || unlocked(node.parent.tech) && showNode(node.parent);
     }
@@ -159,9 +163,10 @@ public class TechTreeDialog extends BaseDialog{
             this.parent = parent;
             width = height = nodeSize;
             nodes.add(this);
-            children = new Node[tech.children.size];
+            Seq<TechNode> kept = tech.children.select(c -> !Tech.removed(c));
+            children = new Node[kept.size];
             for(int i = 0; i < children.length; i++){
-                children[i] = new Node(tech.children.get(i), this);
+                children[i] = new Node(kept.get(i), this);
             }
         }
     }
@@ -202,10 +207,10 @@ public class TechTreeDialog extends BaseDialog{
                 button.update(() -> {
                     float offset = (Core.graphics.getHeight() % 2) / 2f;
                     button.setPosition(node.x + panX + width / 2f, node.y + panY + height / 2f + offset, Align.center);
-                    boolean open = unlocked(node.tech);
-                    button.getStyle().up = open ? Tex.buttonOver : Tex.buttonRed;
-                    ((TextureRegionDrawable)button.getStyle().imageUp).setRegion(node.tech.content.uiIcon);
-                    button.getImage().setColor(open ? Color.white : Color.gray);
+                    boolean open = unlocked(node.tech), selectable = selectable(node.tech);
+                    button.getStyle().up = open ? Tex.buttonOver : selectable ? Tex.button : Tex.buttonRed;
+                    ((TextureRegionDrawable)button.getStyle().imageUp).setRegion(selectable ? node.tech.content.uiIcon : Icon.lock.getRegion());
+                    button.getImage().setColor(open ? Color.white : selectable ? Color.gray : Pal.gray);
                     button.getImage().layout();
                 });
                 addChild(button);
@@ -236,12 +241,13 @@ public class TechTreeDialog extends BaseDialog{
 
             infoTable.update(() -> infoTable.setPosition(button.x + button.getWidth(), button.y + button.getHeight(), Align.topLeft));
             infoTable.left().background(Tex.button).margin(8f);
+            boolean selectable = selectable(node);
             infoTable.table(b -> {
                 b.left().defaults().left();
-                b.button(Icon.info, Styles.flati, () -> ui.content.show(node.content)).growY().width(50f);
+                if(selectable) b.button(Icon.info, Styles.flati, () -> ui.content.show(node.content)).growY().width(50f);
                 b.table(desc -> {
                     desc.left().defaults().left();
-                    desc.add(node.content.localizedName).row();
+                    desc.add(selectable ? node.content.localizedName : "[accent]???").row();
                     if(node.content instanceof SectorPreset p && run != null && run.cleared.contains(p)){
                         desc.add("Cleared").color(Pal.accent);
                     }else if(unlocked(node)){
@@ -251,7 +257,7 @@ public class TechTreeDialog extends BaseDialog{
                         for(Objective o : Tech.missing(run, node)){
                             desc.table(r -> {
                                 r.left();
-                                r.add("> " + Tech.describe(o)).color(Color.lightGray);
+                                r.add("> " + Tech.describe(run, o)).color(Color.lightGray);
                                 r.image(Icon.cancel, Color.scarlet).padLeft(3f);
                             }).row();
                         }
@@ -260,7 +266,7 @@ public class TechTreeDialog extends BaseDialog{
             }).growX().left();
 
             infoTable.row();
-            if(node.content.description != null && node.content.inlineDescription){
+            if(selectable && node.content.description != null && node.content.inlineDescription){
                 infoTable.table(t -> t.margin(3f).left().labelWrap(node.content.displayDescription()).color(Color.lightGray)
                     .maxWidth(node.content.displayDescription().length() > 20 ? 270f : 0f).growX()).fillX();
             }
