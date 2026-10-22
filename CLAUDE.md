@@ -59,7 +59,7 @@ Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in th
 - The game's "save on start" option makes a save of the map's start. During a run it is deleted, or a lost map could be replayed.
 - When a save loads, the slot it came from is only known one frame after the "world loaded" event.
 - The game's research window reads the real campaign's unlocks and can't be changed from a mod, so we draw our own.
-- A single unit's sprite can't be drawn bigger without leaking the scale into everything drawn after it. Avenger draws a bigger glowing copy behind the unit instead.
+- Units have no size of their own. Avenger grows a unit by stretching the sprites it just drew around its center, using the draw buffer's internal fields. It only works while the game draws sorted, which it does for units.
 - The tree layout keeps state in its nodes. Laying out the same nodes twice scatters them, so the tech tree window is rebuilt each time it opens.
 
 ## Several agents at once

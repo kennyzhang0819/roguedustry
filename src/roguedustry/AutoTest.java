@@ -97,23 +97,36 @@ public class AutoTest{
             Mutators.onEnemyHit(first);
             Log.info("[Rogue-Test] barrier shield=@ teleported=@", (int)first.shield, first.x != x);
             shot("05-hud");
-            Building core = state.rules.defaultTeam.core();
-            Tile spot = world.tile(core.tile.x + 6, core.tile.y);
-            spot.setNet(mindustry.content.Blocks.copperWall, state.rules.defaultTeam, 0);
-            spot.build.kill();
             Unit second = enemies.get(1);
             second.set(first.x + 8f, first.y);
         });
         later(14.3f, () -> state.rules.waveTeam.data().units.first().kill());
         later(14.8f, () -> {
-            Log.info("[Rogue-Test] after one kill: enemies=@ avenger=@", Groups.unit.count(u -> u.team == state.rules.waveTeam), Groups.unit.count(u -> u.team == state.rules.waveTeam && u.hasEffect(Mutators.avengerEffects[0])));
+            Unit grown = Groups.unit.find(u -> u.team == state.rules.waveTeam && u.hasEffect(Mutators.avengerEffects[0]));
+            Log.info("[Rogue-Test] after one kill: avenger=@", grown != null);
+            if(grown == null) return;
+            grown.unapply(Mutators.avengerEffects[0]);
+            grown.apply(Mutators.avengerEffects[Mutators.maxAvenger - 1]);
+            Building core = state.rules.defaultTeam.core();
+            grown.set(core.x - 24f, core.y - 44f);
+            grown.rotation = 90f;
+            Unit normal = mindustry.content.UnitTypes.dagger.spawn(state.rules.waveTeam, core.x + 24f, core.y - 44f);
+            normal.rotation = 90f;
+        });
+        later(15.0f, () -> {
+            Groups.unit.each(u -> u.team == state.rules.waveTeam && u.within(state.rules.defaultTeam.core(), 80f), u -> u.set(u.x, state.rules.defaultTeam.core().y - 44f));
+            state.set(mindustry.core.GameState.State.paused);
+        });
+        later(15.8f, () -> {
             shot("05b-avenger");
+            Log.info("[Rogue-Test] grown hitSize=@ normal hitSize=@", (int)Groups.unit.find(u -> u.hasEffect(Mutators.avengerEffects[Mutators.maxAvenger - 1])).hitSize, (int)mindustry.content.UnitTypes.dagger.hitSize);
+        });
+        later(16.5f, () -> {
+            state.set(mindustry.core.GameState.State.playing);
             Groups.unit.each(u -> u.team == state.rules.waveTeam, Unit::kill);
         });
         later(18f, () -> {
-            Building core = state.rules.defaultTeam.core();
-            Tile spot = world.tile(core.tile.x + 6, core.tile.y);
-            Log.info("[Rogue-Test] after 3s: enemies=@ (revived) captured wall team=@", Groups.unit.count(u -> u.team == state.rules.waveTeam), spot.team());
+            Log.info("[Rogue-Test] after 3s: enemies=@ (revived)", Groups.unit.count(u -> u.team == state.rules.waveTeam));
             Mutators.deployTimer = 1e9f;
         });
         later(19f, () -> Log.info("[Rogue-Test] after deployment: enemies=@", Groups.unit.count(u -> u.team == state.rules.waveTeam)));

@@ -20,11 +20,11 @@ Lose a single map and the run is over: you start again from Ground Zero. Each ma
 
 ### Mutators
 
-Enemies get mutators, like in StarCraft II co-op. At the start of each map, before your relic, you curse the enemies: pick 1 of 3 mutators they don't have yet. They keep it for the whole run, so every map is harder than the last. There are 15 so far:
+Enemies get mutators, like in StarCraft II co-op. At the start of each map, before your relic, you curse the enemies: pick 1 of 3 mutators they don't have yet. They keep it for the whole run, so every map is harder than the last. There are 14 so far:
 
 - Speed Freaks, Life Leech, Long Range, Just Die!
 - On death: Self Destruction, Mutually Assured Destruction (bosses), Walking Infested (ground units release the first unit of their line), Alien Incubation (the same for air units)
-- Enemy buffs: Barrier (a personal shield on the first hit), Avenger (grows bigger and stronger when allies die), Inspiration (bosses boost nearby enemies), Evasive Maneuvers (teleport forward when hit), Transmutation (rarely turns into the next unit of its line), Eminent Domain (your destroyed structures come back as enemy structures), Aggressive Deployment (an extra group between waves)
+- Enemy buffs: Barrier (a personal shield on the first hit), Avenger (grows bigger and stronger when allies die), Inspiration (bosses boost nearby enemies), Evasive Maneuvers (teleport forward when hit), Transmutation (rarely turns into the next unit of its line), Aggressive Deployment (an extra group between waves)
 
 The icons are drawn by `tools/make-icons.py` (needs Python with Pillow and numpy).
 

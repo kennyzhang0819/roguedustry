@@ -6,10 +6,13 @@ import arc.math.*;
 import arc.struct.*;
 import arc.util.*;
 import arc.graphics.g2d.*;
+import java.lang.reflect.*;
+import java.util.*;
 import mindustry.ai.*;
 import mindustry.ai.types.*;
 import mindustry.content.*;
 import mindustry.entities.*;
+import mindustry.entities.abilities.*;
 import mindustry.entities.bullet.*;
 import mindustry.entities.units.*;
 import mindustry.game.*;
@@ -56,13 +59,12 @@ public class Mutators{
     inspiration = new Mutator("inspiration", "Inspiration", "Enemy bosses make nearby enemies move, shoot and hit harder."),
     evasiveManeuvers = new Mutator("evasive-maneuvers", "Evasive Maneuvers", "Damaged enemy units teleport a few tiles forward. Each unit can do this every 4 seconds."),
     transmutation = new Mutator("transmutation", "Transmutation", "Enemy units that hit you have a small chance to turn into the next, stronger unit of their line."),
-    eminentDomain = new Mutator("eminent-domain", "Eminent Domain", "Your destroyed structures come back 3 seconds later as enemy structures."),
     aggressiveDeployment = new Mutator("aggressive-deployment", "Aggressive Deployment", "An extra enemy group, half the size of the last wave, arrives between waves.");
 
     public static final Seq<Mutator> all = Seq.with(
         speedFreaks, lifeLeech, longRange, justDie,
         selfDestruction, mutuallyAssured, walkingInfested, alienIncubation,
-        barrier, avenger, inspiration, evasiveManeuvers, transmutation, eminentDomain, aggressiveDeployment
+        barrier, avenger, inspiration, evasiveManeuvers, transmutation, aggressiveDeployment
     );
 
     static final float rangeMultiplier = 1.5f, leech = 0.5f, reviveDelay = 60f * 3f, transmuteChance = 0.002f;
@@ -100,15 +102,16 @@ public class Mutators{
             }
 
                 @Override
+                public void update(Unit unit, StatusEntry entry){
+                    super.update(unit, entry);
+                    Grow ability = Grow.of(unit);
+                    ability.scale = grow;
+                    unit.hitSize = unit.type.hitSize * grow;
+                }
+
+                @Override
                 public void draw(Unit unit, float time){
-                    TextureRegion region = unit.type.fullIcon;
-                    float z = Draw.z();
-                    Draw.z(unit.isFlying() ? Layer.flyingUnitLow - 0.5f : Layer.groundUnit - 0.5f);
-                    Draw.mixcol(Color.scarlet, 1f);
-                    Draw.alpha(0.6f);
-                    Draw.rect(region, unit.x, unit.y, region.width * Draw.scl * grow, region.height * Draw.scl * grow, unit.rotation - 90f);
-                    Draw.reset();
-                    Draw.z(z);
+                    Grow.begin(unit);
                 }
             };
         }
@@ -159,7 +162,6 @@ public class Mutators{
     }
 
     static void update(){
-        if(on(eminentDomain)) state.rules.teams.get(state.rules.waveTeam).cheat = true;
         updateDeployment();
 
         if(on(inspiration) && (auraTimer += Time.delta) >= 30f){
@@ -341,7 +343,6 @@ public class Mutators{
                 if(stacks >= maxAvenger) return;
                 if(stacks > 0) other.unapply(avengerEffects[stacks - 1]);
                 other.apply(avengerEffects[stacks]);
-                other.hitSize = other.type.hitSize * (1f + 0.08f * (stacks + 1));
                 avengerStacks.put(other.id, stacks + 1);
             });
         }
@@ -395,16 +396,75 @@ public class Mutators{
         unit.remove();
     }
 
-    static void onStructureLost(Building build){
-        if(!on(eminentDomain) || build.team != state.rules.defaultTeam || build.block instanceof CoreBlock || build.block instanceof ConstructBlock) return;
-        Block block = build.block;
-        int rotation = build.rotation, pos = build.tile.pos();
-        later(60f * 3f, () -> {
-            Tile tile = world.tile(pos);
-            if(tile == null || !Build.validPlace(block, state.rules.waveTeam, tile.x, tile.y, rotation, false, false)) return;
-            tile.setNet(block, state.rules.waveTeam, rotation);
-            Fx.placeBlock.at(tile.drawx(), tile.drawy(), block.size);
-        });
+    //units have no size of their own, so a grown unit's sprites are stretched around its center right after it is drawn
+    static class Grow extends Ability{
+        static Field verts, offset, sorted;
+        static @Nullable Unit drawing;
+        static int start;
+
+        float scale = 1f;
+
+        {
+            display = false;
+        }
+
+        static Grow of(Unit unit){
+            for(Ability a : unit.abilities){
+                if(a instanceof Grow g) return g;
+            }
+            Grow g = new Grow();
+            Ability[] next = Arrays.copyOf(unit.abilities, unit.abilities.length + 1);
+            next[next.length - 1] = g;
+            unit.abilities = next;
+            return g;
+        }
+
+        static boolean ready(){
+            if(!(Core.batch instanceof SpriteBatch)) return false;
+            try{
+                if(verts == null){
+                    verts = SpriteBatch.class.getDeclaredField("requestVerts");
+                    offset = SpriteBatch.class.getDeclaredField("requestVertOffset");
+                    sorted = SpriteBatch.class.getDeclaredField("sort");
+                    verts.setAccessible(true);
+                    offset.setAccessible(true);
+                    sorted.setAccessible(true);
+                }
+                return sorted.getBoolean(Core.batch);
+            }catch(Throwable e){
+                return false;
+            }
+        }
+
+        static void begin(Unit unit){
+            drawing = null;
+            if(!ready()) return;
+            try{
+                start = offset.getInt(Core.batch);
+                drawing = unit;
+            }catch(Throwable ignored){
+            }
+        }
+
+        @Override
+        public void draw(Unit unit){
+            if(drawing != unit || scale == 1f) return;
+            drawing = null;
+            try{
+                int end = offset.getInt(Core.batch);
+                float[] v = (float[])verts.get(Core.batch);
+                for(int i = start; i < end; i += SpriteBatch.VERTEX_SIZE){
+                    v[i] = unit.x + (v[i] - unit.x) * scale;
+                    v[i + 1] = unit.y + (v[i + 1] - unit.y) * scale;
+                }
+            }catch(Throwable ignored){
+            }
+        }
+
+        @Override
+        public Ability copy(){
+            return new Grow();
+        }
     }
 
     static void onHit(Bullet bullet, float damage){
@@ -436,10 +496,6 @@ public class Mutators{
             if(!RogueRun.active() || e.build.team != state.rules.defaultTeam) return;
             onHit(e.source, e.source.type.buildingDamage(e.source));
             if(e.source.owner instanceof Unit attacker && attacker.team == state.rules.waveTeam) onEnemyAttack(attacker);
-        });
-
-        Events.on(BlockDestroyEvent.class, e -> {
-            if(RogueRun.active() && e.tile.build != null) onStructureLost(e.tile.build);
         });
 
         Events.on(WaveEvent.class, e -> onWave());

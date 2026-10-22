@@ -212,15 +212,6 @@ def transmutation():
     ]
 
 
-def eminent_domain():
-    return [
-        (stroke([(12, 6), (12, 52)], 5, 3), LIGHT),
-        (poly([(16, 1), (50, 1), (38, 13), (50, 25), (16, 25)]), RED),
-        (octagon(14, 32, 63, 63, 10), GRAY2),
-        (octagon(24, 42, 53, 54, 5), DARK),
-    ]
-
-
 def aggressive_deployment():
     def down(y):
         return stroke([(10, y), (32, y + 22), (54, y)], 5, 3)
@@ -236,7 +227,7 @@ for name, fn in [
     ("self-destruction", self_destruction), ("mutually-assured-destruction", mutually_assured),
     ("walking-infested", walking_infested), ("alien-incubation", alien_incubation), ("barrier", barrier),
     ("avenger", avenger), ("inspiration", inspiration), ("evasive-maneuvers", evasive_maneuvers),
-    ("transmutation", transmutation), ("eminent-domain", eminent_domain), ("aggressive-deployment", aggressive_deployment),
+    ("transmutation", transmutation), ("aggressive-deployment", aggressive_deployment),
 ]:
     icon(name, fn())
 
