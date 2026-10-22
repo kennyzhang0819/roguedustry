@@ -167,7 +167,7 @@ public class RogueUI{
                     card.add(reward.rarity.label).color(reward.rarity.color).padBottom(4f).row();
                     card.add(reward.name).color(reward.rarity.color).padBottom(8f).row();
                     card.add(reward.description).wrap().width(220f).row();
-                    if(run.stacks(reward) > 0) card.add("You have " + run.stacks(reward) + " of " + reward.max).color(Color.lightGray).padTop(8f).row();
+                    if(!reward.isRelic()) card.add(run.stacks(reward) > 0 ? "You have " + run.stacks(reward) + " of " + reward.max : "Stacks up to " + reward.max + " times").color(Color.lightGray).padTop(8f).row();
                 }, Styles.defaultb, () -> choose(index)).size(260f, 230f).pad(8f);
             }
         });

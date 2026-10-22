@@ -31,7 +31,7 @@ public class RunReport{
         System.out.println("== Relics and modifiers ==");
         System.out.println("(a relic pick on each new sector, a modifier pick every " + Rewards.wavesPerModifier + " waves cleared on a sector)");
         for(Rewards.Reward r : Rewards.all){
-            System.out.printf("%-9s %-18s max %d  %s%n", r.rarity.label, r.name, r.max, r.description);
+            System.out.printf("%-9s %-18s %-9s %s%n", r.rarity.label, r.name, r.isRelic() ? "single" : "stacks " + r.max, r.description);
         }
 
         System.out.println();

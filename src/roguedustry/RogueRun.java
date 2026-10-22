@@ -318,7 +318,7 @@ public class RogueRun{
 
         Events.on(UnitCreateEvent.class, e -> {
             if(active() && e.unit.team == state.rules.defaultTeam && current.stacks(Rewards.ironLegion) > 0 && Rewards.ironLegionType(e.unit.type)){
-                e.unit.shield += e.unit.maxHealth;
+                e.unit.shield += e.unit.maxHealth * current.stacks(Rewards.ironLegion);
             }
         });
 
