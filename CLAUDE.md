@@ -1,6 +1,6 @@
 # Roguedustry
 
-A roguelike tower-defense mod for Mindustry v8 (build 160.7). The player only places turrets, walls, shields and menders. Waves are written by hand. Kills give XP, and each level up offers a choice of 3 block packs.
+A roguelike tower-defense mod for Mindustry v8 (build 160.7). The player places turrets, walls, shields, menders and drills. Waves are written by hand. Kills give XP, and each level up offers a choice of 3 block packs. Drills mine copper into the core, and copper buys packs in the shop.
 
 ## Writing rules
 - No code comments, except to warn about a game quirk that would cause a bug if someone missed it. Keep those to one line.
@@ -20,9 +20,10 @@ A roguelike tower-defense mod for Mindustry v8 (build 160.7). The player only pl
 
 ## Where things are
 - `src/roguedustry/Waves.java`: the wave list
-- `src/roguedustry/Packs.java`: starting blocks, level-up packs, tiers
+- `src/roguedustry/Packs.java`: starting blocks, level-up packs, tiers, shop and drill prices
+- `src/roguedustry/MapGen.java`: random map with a land path and a river to the core
 - `src/roguedustry/RogueRun.java`: run setup, spawning, XP, build charges
-- `src/roguedustry/RogueUI.java`: menu button, map picker, side panel, level-up dialog
+- `src/roguedustry/RogueUI.java`: menu button, map picker, side panel, level-up dialog, shop
 - `tools/`: balance report and source download script (not part of the mod)
 
 ## Game source
@@ -35,6 +36,9 @@ A roguelike tower-defense mod for Mindustry v8 (build 160.7). The player only pl
 - Vanilla waves must stay switched on, or enemies don't target the core.
 - A new map's rules aren't set yet when the "world loaded" event fires. Start runs on the "new game" event.
 - The game pauses when its window loses focus.
+- The game stops building any block that isn't whitelisted, even one already started. A block keeps its whitelist spot until its last paid copy is finished.
+- Removing a block puts its build cost into the core unless the deconstruct refund is set to 0.
+- Maps loaded from a file bring the game's default waves; clear them or they spawn on top of ours.
 
 ## Several agents at once
 - Give each agent its own branch or git worktree. Two agents must never edit the same files in one folder.

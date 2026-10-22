@@ -2,6 +2,7 @@ package roguedustry;
 
 import arc.math.*;
 import arc.struct.*;
+import arc.util.*;
 import mindustry.world.*;
 
 import static mindustry.content.Blocks.*;
@@ -33,6 +34,25 @@ public class Packs{
     }
 
     public static final int[] tierLevels = {1, 3, 6, 9};
+    public static final int[] tierPrices = {60, 180, 500, 1200};
+    public static final int startingCopper = 60, rerollPrice = 20, shopSize = 4;
+
+    static @Nullable OrderedMap<Block, Integer> drills;
+
+    public static OrderedMap<Block, Integer> drills(){
+        if(drills == null){
+            drills = new OrderedMap<>();
+            drills.put(mechanicalDrill, 20);
+            drills.put(pneumaticDrill, 50);
+            drills.put(laserDrill, 200);
+            drills.put(blastDrill, 500);
+        }
+        return drills;
+    }
+
+    public static int price(Pack pack){
+        return tierPrices[pack.tier];
+    }
 
     public static Seq<Entry> startingKit(){
         return new Pack(0, "Starting kit", duo, 4, copperWall, 12, mender, 1).entries;
@@ -85,6 +105,10 @@ public class Packs{
     }
 
     public static Seq<Pack> roll(int level, Rand rand){
+        return roll(level, rand, 3);
+    }
+
+    public static Seq<Pack> roll(int level, Rand rand, int count){
         int top = maxTier(level);
         Seq<Pack> pool = all().select(p -> p.tier <= top);
         Seq<Pack> topPool = pool.select(p -> p.tier == top);
@@ -92,7 +116,7 @@ public class Packs{
 
         out.add(topPool.get(rand.random(topPool.size - 1)));
         pool.remove(out.first());
-        while(out.size < 3 && pool.any()){
+        while(out.size < count && pool.any()){
             out.add(pool.remove(rand.random(pool.size - 1)));
         }
         return out.shuffle();

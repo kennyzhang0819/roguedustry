@@ -59,7 +59,7 @@ public class AutoTest{
         later(2f, () -> {
             String name = OS.env("ROGUE_MAP");
             Seq<Map> list = RogueUI.playableMaps();
-            Map map = name == null ? list.first() : list.find(m -> m.name().equalsIgnoreCase(name));
+            Map map = name == null ? MapGen.create(1) : list.find(m -> m.name().equalsIgnoreCase(name));
             Log.info("[Rogue-Test] Playable maps: @", list.map(Map::name));
             Log.info("[Rogue-Test] Starting run on '@' (@ spawns)", map.name(), map.spawns);
             RogueRun.start(map);

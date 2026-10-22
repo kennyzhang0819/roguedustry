@@ -7,6 +7,7 @@ import mindustry.core.*;
 import mindustry.entities.bullet.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.turrets.*;
+import mindustry.world.blocks.production.*;
 
 public class BalanceReport{
     static final float travelSeconds = 20f;
@@ -75,6 +76,20 @@ public class BalanceReport{
             }
         }
         System.out.println("(range in tiles)");
+
+        System.out.println();
+        System.out.println("== Copper ==");
+        System.out.println("(start " + Packs.startingCopper + ", reroll " + Packs.rerollPrice + ". Mining speed assumes every drill tile is on copper ore.)");
+        for(int t = 0; t < Packs.tierPrices.length; t++){
+            System.out.printf("tier %d pack: %d copper%n", t + 1, Packs.tierPrices[t]);
+        }
+        System.out.printf("%-16s %6s %9s %10s%n", "drill", "price", "copper/s", "pays back");
+        for(var e : Packs.drills()){
+            Drill d = (Drill)e.key;
+            float perSecond = 60f / d.getDrillTime(Items.copper) * d.size * d.size * d.liquidBoostIntensity;
+            System.out.printf("%-16s %6d %9.2f %9.0fs%n", d.name, e.value, perSecond, e.value / perSecond);
+        }
+        System.out.println("(drills get the water speed boost for free)");
     }
 
     static void printPack(String tier, String name, Seq<Packs.Entry> entries){

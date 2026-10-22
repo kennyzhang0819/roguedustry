@@ -13,6 +13,8 @@ import mindustry.type.*;
 import mindustry.world.*;
 import mindustry.world.blocks.ConstructBlock.*;
 import mindustry.world.blocks.defense.turrets.LiquidTurret.*;
+import mindustry.world.blocks.environment.*;
+import mindustry.world.blocks.production.Drill.*;
 
 import static mindustry.Vars.*;
 
@@ -25,15 +27,17 @@ public class RogueRun{
     public final Seq<Waves.Wave> waves = Waves.schedule();
     public final ObjectIntMap<Block> charges = new ObjectIntMap<>();
     public final IntMap<Block> paid = new IntMap<>();
+    public final IntIntMap paidCopper = new IntIntMap();
+    public Seq<Packs.Pack> shop = new Seq<>();
     public final Rand rand = new Rand();
 
     public int wave;
     public int level = 1, xp, pendingLevelUps;
     public boolean autoStart, won;
-    public int inventoryVersion;
+    public int inventoryVersion, shopVersion;
 
     final Seq<ActiveGroup> active = new Seq<>();
-    float autoStartTimer, liquidTimer;
+    float autoStartTimer, liquidTimer, drillTimer;
     int holdFrames;
 
     static class ActiveGroup{
@@ -75,6 +79,9 @@ public class RogueRun{
         player.infiniteResources = true;
         player.buildSpeedMultiplier = 4f;
         player.unitDamageMultiplier = 0f;
+        rules.loadout = ItemStack.list(Items.copper, Packs.startingCopper);
+        //removing a block would otherwise put its build cost into the core
+        rules.deconstructRefundMultiplier = 0f;
 
         starting = true;
         control.playMap(map, rules);
@@ -83,10 +90,22 @@ public class RogueRun{
     void init(){
         //vanilla starts at 1; from 0, the panel shows the running wave and the win check fires after the last one
         state.wave = 0;
+        //maps loaded from a file bring the game's default waves, which would spawn on top of ours
+        state.rules.spawns = new Seq<>();
+        removeOtherOres();
+        rollShop();
         for(Packs.Entry e : Packs.startingKit()){
             addCharges(e.block, e.amount);
         }
         syncWhitelist();
+    }
+
+    void removeOtherOres(){
+        for(Tile tile : world.tiles){
+            if(tile.overlay() instanceof OreBlock && tile.overlay() != Blocks.oreCopper){
+                tile.setOverlay(Blocks.air);
+            }
+        }
     }
 
     public int totalWaves(){
@@ -109,6 +128,7 @@ public class RogueRun{
         wave = state.wave;
         autoStartTimer = 0f;
         if(wave < 1 || wave > waves.size) return;
+        rollShop();
 
         for(Waves.Group group : waves.get(wave - 1).groups){
             active.add(new ActiveGroup(group));
@@ -140,12 +160,18 @@ public class RogueRun{
     }
 
     void spawnUnit(Waves.Group group, int index){
+        UnitType type = group.type;
         Seq<Tile> spawns = spawner.getSpawns();
+        if(type.naval){
+            spawns = spawns.select(t -> t.floor().isLiquid);
+        }else if(!type.flying){
+            Seq<Tile> land = spawns.select(t -> !t.floor().isDeep());
+            if(land.any()) spawns = land;
+        }
         if(spawns.isEmpty()) return;
 
         Tile spawn = spawns.get(index % spawns.size);
         float x = spawn.worldx(), y = spawn.worldy();
-        UnitType type = group.type;
 
         if(type.flying){
             float margin = 40f;
@@ -185,6 +211,45 @@ public class RogueRun{
         syncWhitelist();
     }
 
+    public int copper(){
+        Building core = state.rules.defaultTeam.core();
+        return core == null ? 0 : core.items.get(Items.copper);
+    }
+
+    boolean spendCopper(int amount){
+        Building core = state.rules.defaultTeam.core();
+        if(core == null || !core.items.has(Items.copper, amount)) return false;
+        core.items.remove(Items.copper, amount);
+        return true;
+    }
+
+    void giveCopper(int amount){
+        Building core = state.rules.defaultTeam.core();
+        if(core != null) core.items.add(Items.copper, Math.min(amount, core.getMaximumAccepted(Items.copper) - core.items.get(Items.copper)));
+    }
+
+    public void rollShop(){
+        shop = Packs.roll(level, rand, Packs.shopSize);
+        shopVersion++;
+    }
+
+    public boolean reroll(){
+        if(!spendCopper(Packs.rerollPrice)) return false;
+        rollShop();
+        return true;
+    }
+
+    public boolean buy(Packs.Pack pack){
+        if(!shop.contains(pack, true) || !spendCopper(Packs.price(pack))) return false;
+        shop.remove(pack, true);
+        shopVersion++;
+        for(Packs.Entry e : pack.entries){
+            addCharges(e.block, e.amount);
+        }
+        Log.info("[Rogue] Bought pack '@'", pack.name);
+        return true;
+    }
+
     public void choosePack(Packs.Pack pack){
         for(Packs.Entry e : pack.entries){
             addCharges(e.block, e.amount);
@@ -199,6 +264,13 @@ public class RogueRun{
         state.rules.bannedBlocks.clear();
         for(var e : charges){
             if(e.value > 0) state.rules.bannedBlocks.add(e.key);
+        }
+        for(Block drill : Packs.drills().keys()){
+            state.rules.bannedBlocks.add(drill);
+        }
+        //the game stops building anything that isn't whitelisted, so a block keeps its spot until its last paid copy is done
+        for(var e : paid){
+            if(world.tile(e.key) != null && world.tile(e.key).build instanceof ConstructBuild) state.rules.bannedBlocks.add(e.value);
         }
 
         if(!headless){
@@ -219,17 +291,36 @@ public class RogueRun{
         }
 
         Block block = cb.current;
-        if(charges.get(block, 0) > 0){
+        int price = Packs.drills().get(block, 0);
+        if(price > 0){
+            if(spendCopper(price)){
+                paidCopper.put(e.tile.pos(), price);
+            }else{
+                reject(e, "Not enough copper for " + block.localizedName + " (" + price + ")");
+            }
+        }else if(charges.get(block, 0) > 0){
             charges.increment(block, -1);
             paid.put(e.tile.pos(), block);
             inventoryVersion++;
             syncWhitelist();
+        }else{
+            reject(e, "No " + block.localizedName + " left");
         }
     }
 
+    void reject(BlockBuildBeginEvent e, String message){
+        Tile tile = e.tile;
+        if(e.unit != null) e.unit.plans.remove(p -> p.x == tile.x && p.y == tile.y && !p.breaking);
+        tile.remove();
+        if(!headless) ui.showInfoToast(message, 2f);
+    }
+
     void onBuildEnd(BlockBuildEndEvent e){
-        if(e.team == state.rules.defaultTeam && e.breaking){
+        if(e.team != state.rules.defaultTeam) return;
+        if(e.breaking){
             refund(e.tile.pos());
+        }else{
+            syncWhitelist();
         }
     }
 
@@ -238,6 +329,13 @@ public class RogueRun{
         if(block != null){
             addCharges(block, 1);
         }
+        int price = paidCopper.remove(pos, 0);
+        if(price > 0) giveCopper(price);
+    }
+
+    void onDestroy(Tile tile){
+        paidCopper.remove(tile.pos(), 0);
+        if(paid.remove(tile.pos()) != null) syncWhitelist();
     }
 
     void update(){
@@ -256,6 +354,11 @@ public class RogueRun{
             if(autoStartTimer >= 60f * 3f) startWave();
         }
 
+        if((drillTimer += Time.delta) >= 15f){
+            drillTimer = 0f;
+            collectOre();
+        }
+
         //the cheat rule doesn't give liquid turrets ammo
         if((liquidTimer += Time.delta) >= 30f){
             liquidTimer = 0f;
@@ -265,6 +368,19 @@ public class RogueRun{
                 }
             }
         }
+    }
+
+    void collectOre(){
+        Building core = state.rules.defaultTeam.core();
+        if(core == null) return;
+        int mined = 0;
+        for(Building build : state.rules.defaultTeam.data().buildings){
+            if(build instanceof DrillBuild drill && drill.items.total() > 0){
+                mined += drill.items.get(Items.copper);
+                drill.items.clear();
+            }
+        }
+        if(mined > 0) giveCopper(mined);
     }
 
     static void registerEvents(){
@@ -295,7 +411,7 @@ public class RogueRun{
         });
 
         Events.on(BlockDestroyEvent.class, e -> {
-            if(active()) current.paid.remove(e.tile.pos());
+            if(active()) current.onDestroy(e.tile);
         });
 
         Events.on(UnitDestroyEvent.class, e -> {
