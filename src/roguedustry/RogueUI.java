@@ -187,23 +187,23 @@ public class RogueUI{
     public void showRunInfo(){
         RogueRun run = run();
         if(!RogueRun.active()) return;
-        infoDialog = new BaseDialog("Run Modifiers");
+        infoDialog = new BaseDialog("Roguedustry Modifiers");
         Table c = infoDialog.cont;
         c.add("Next modifier after wave " + run.nextModifierWave()).color(Color.lightGray).padBottom(8f).row();
 
         c.pane(list -> {
             list.left().defaults().left().pad(2f);
-            list.add("[#" + curseColor + "]Curses").padTop(6f).row();
+            rewardList(list, run, "Relics", true);
+            rewardList(list, run, "Modifiers", false);
+            list.add("[#" + curseColor + "]Curses").padTop(10f).row();
             if(run.mutators.isEmpty()) list.add("[lightgray]none").row();
             for(Mutators.Mutator mutator : run.mutators){
                 list.table(line -> {
                     line.left();
                     line.image(mutator.icon()).size(40f).padRight(8f);
-                    line.add("[#" + curseColor + "]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(640f).left();
+                    line.add("[#" + curseColor + "]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(630f).left();
                 }).row();
             }
-            rewardList(list, run, "Relics", true);
-            rewardList(list, run, "Modifiers", false);
         }).maxHeight(Core.graphics.getHeight() / Scl.scl() * 0.65f).width(720f);
 
         infoDialog.addCloseButton();
@@ -212,12 +212,12 @@ public class RogueUI{
     }
 
     static void rewardList(Table list, RogueRun run, String title, boolean relics){
-        list.add("[accent]" + title).padTop(10f).row();
+        list.add((relics ? "[#" + Rewards.Rarity.relic.color + "]" : "[accent]") + title).padTop(relics ? 0f : 10f).row();
         boolean any = false;
         for(var e : run.rewards){
             if(e.key.isRelic() != relics) continue;
             any = true;
-            list.add("[#" + e.key.rarity.color + "]" + e.key.name + (e.value > 1 ? " x" + e.value : "") + "[]: [lightgray]" + e.key.description).wrap().width(700f).row();
+            list.add("[#" + e.key.rarity.color + "]" + e.key.name + (e.value > 1 ? " x" + e.value : "") + "[]: [lightgray]" + e.key.description).wrap().width(680f).row();
         }
         if(!any) list.add("[lightgray]none").row();
     }
@@ -228,7 +228,7 @@ public class RogueUI{
         panel.visible(() -> RogueRun.active() && ui.hudfrag.shown());
         panel.left();
         panel.defaults().height(40f).growX();
-        panel.button("Run Modifiers", Icon.book, Styles.cleart, this::showRunInfo);
+        panel.button("Roguedustry Modifiers", Icon.book, Styles.cleart, this::showRunInfo);
 
         Table waves = ui.hudGroup.find("waves");
         if(waves != null){

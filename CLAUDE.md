@@ -27,7 +27,7 @@ Theme colors: curses red, relics purple, modifiers by rarity (common green, unco
 - `src/roguedustry/RogueRun.java`: run state and saving it, free research, sector lock, picks per sector, relic and modifier effects
 - `src/roguedustry/Rewards.java`: relics and modifiers, their rarity, how many picks per sector
 - `src/roguedustry/Mutators.java`: enemy mutators and the mutator offer
-- `src/roguedustry/RogueUI.java`: menu, curse, relic and modifier picks, Run Modifiers window and HUD button
+- `src/roguedustry/RogueUI.java`: menu, curse, relic and modifier picks, Roguedustry Modifiers window and HUD button
 - `src/roguedustry/AutoTest.java`: the screenshot check
 - `sprites/mutators/`: mutator icons, drawn by `tools/make-icons.py` (needs Python with Pillow and numpy)
 

@@ -37,7 +37,7 @@ Needs Mindustry v8 (build 154 or newer) on desktop.
 ## Playing
 
 - Press **Roguedustry** in the main menu to start or continue a run, then pick a sector on the planet map as usual.
-- The **Run Modifiers** button under the wave counter pauses the game and shows the curses, your relics and modifiers, and the wave of the next modifier pick.
+- The **Roguedustry Modifiers** button under the wave counter pauses the game and shows the curses, your relics and modifiers, and the wave of the next modifier pick.
 - Going back to the main menu leaves the run and brings back your own campaign.
 
 ## Run report
@@ -46,7 +46,7 @@ Run `./report.sh` to see the campaign sectors, the disabled blocks, the relics a
 
 ## Screenshot check
 
-Set `ROGUE_AUTOTEST=hud` and start the game. It starts a new run on Ground Zero, picks a relic, a curse and a modifier, sends a wave with every curse on, opens the Run Modifiers window, goes back to the menu, checks that your own campaign came back, saves a screenshot of each step to `ROGUE_SHOTS` and quits. Point the game's data folder at an empty folder so your own saves aren't touched (`APPDATA` on Windows, `XDG_DATA_HOME` on Linux). The test deletes any saved run.
+Set `ROGUE_AUTOTEST=hud` and start the game. It starts a new run on Ground Zero, picks a relic, a curse and a modifier, sends a wave with every curse on, opens the Roguedustry Modifiers window, goes back to the menu, checks that your own campaign came back, saves a screenshot of each step to `ROGUE_SHOTS` and quits. Point the game's data folder at an empty folder so your own saves aren't touched (`APPDATA` on Windows, `XDG_DATA_HOME` on Linux). The test deletes any saved run.
 
 ## Known limits
 
