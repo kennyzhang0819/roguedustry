@@ -34,7 +34,7 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 ## Icon style
 Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in the game source):
 - 64x64, flat colors, no outlines, transparent background. Use the game's palette (listed at the top of the script).
-- Every edge is straight or exactly 45°. Every corner, inside and out, has a small 45° cut, so shapes look slightly rounded.
+- Every edge is straight or exactly 45°. The script stops with an error if a shape breaks this. Every corner, inside and out, has a small 45° cut, so shapes look slightly rounded.
 - Shapes are thick bands (about 10px), overlapping and touching each other. Pieces never float apart.
 - Fill most of the frame. Bold shapes, few tiny details. A main color plus a darker partner of the same hue for depth.
 - Compare new icons side by side with the game's icons before committing.

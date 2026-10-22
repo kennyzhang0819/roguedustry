@@ -45,13 +45,23 @@ def blank():
     return np.zeros((SIZE, SIZE), dtype=bool)
 
 
+def check_angles(points, closed):
+    pairs = zip(points, points[1:] + (points[:1] if closed else []))
+    for (x0, y0), (x1, y1) in pairs:
+        dx, dy = abs(x1 - x0), abs(y1 - y0)
+        if dx and dy and dx != dy:
+            raise ValueError(f"edge {(x0, y0)} -> {(x1, y1)} is not straight or 45 degrees")
+
+
 def poly(points):
+    check_angles(points, True)
     img = Image.new("1", (SIZE, SIZE), 0)
     ImageDraw.Draw(img).polygon(points, fill=1)
     return soften(np.array(img, dtype=bool))
 
 
 def stroke(points, r=4, cut=3):
+    check_angles(points, False)
     img = Image.new("1", (SIZE, SIZE), 0)
     ImageDraw.Draw(img).line(points, fill=1, width=1)
     return dilate(np.array(img, dtype=bool), r, cut)
@@ -77,148 +87,117 @@ def icon(name, layers):
     Image.fromarray(img, "RGBA").save(os.path.join(OUT, name + ".png"))
 
 
-def right_chevron(x, y, s):
-    return [(x, y), (x + s, y + s), (x, y + 2 * s)]
-
-
-def right_half():
-    return poly([(32, 0), (64, 0), (64, 64), (32, 64)])
+def diamond(cx, cy, r):
+    return poly([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)])
 
 
 def speed_freaks():
     return [
-        (stroke([(8, 32), (22, 32)], 6, 4), PEACH),
-        (stroke(right_chevron(10, 10, 22), 6, 4), DRED),
-        (stroke(right_chevron(32, 10, 22), 6, 4), RED),
+        (stroke([(6, 50), (26, 30)], 5, 3) | stroke([(6, 30), (16, 20)], 4, 3), PEACH),
+        (stroke([(22, 8), (46, 32), (22, 56)], 6, 4), RED),
+        (stroke([(38, 8), (58, 28)], 5, 3), DRED),
     ]
 
 
 def life_leech():
-    drop = poly([(32, 2), (56, 26), (56, 44), (42, 62), (22, 62), (8, 44), (8, 26)])
     return [
-        (drop, RED),
-        (drop & right_half(), DRED),
-        (stroke([(20, 30), (20, 44), (28, 52)], 4, 3), PEACH),
+        (stroke([(10, 8), (10, 38), (24, 52), (40, 52)], 6, 4), DRED),
+        (stroke([(54, 56), (54, 26), (40, 12), (24, 12)], 6, 4), RED),
+        (dot(32, 32, 6, 4), PEACH),
     ]
 
 
 def long_range():
-    ring = octagon(4, 4, 60, 60, 18) & ~octagon(16, 16, 48, 48, 11)
-    ticks = stroke([(32, 5), (32, 20)], 4, 3) | stroke([(32, 44), (32, 59)], 4, 3) | stroke([(5, 32), (20, 32)], 4, 3) | stroke([(44, 32), (59, 32)], 4, 3)
     return [
-        (ring, SLATE),
-        (ticks, LIGHT),
-        (dot(32, 32, 8, 5), RED),
+        (stroke([(10, 14), (10, 50)], 6, 4), SLATE),
+        (stroke([(10, 32), (50, 32)], 6, 4), LIGHT),
+        (diamond(52, 32, 10), RED),
     ]
 
 
 def just_die():
-    skull = octagon(6, 16, 58, 52, 14) | octagon(16, 40, 48, 62, 7)
-    holes = octagon(15, 26, 29, 40, 5) | octagon(35, 26, 49, 40, 5) | stroke([(28, 54), (28, 62)], 1, 1) | stroke([(36, 54), (36, 62)], 1, 1)
     return [
-        (skull & ~holes, LIGHT),
-        (stroke([(16, 20), (32, 4), (48, 20)], 6, 4), RED),
+        (stroke([(8, 58), (20, 46), (44, 46), (56, 58)], 5, 3), SLATE),
+        (stroke([(32, 46), (32, 26)], 6, 4) | stroke([(32, 26), (16, 10)], 5, 3) | stroke([(32, 26), (48, 10)], 5, 3), RED),
     ]
 
 
 def self_destruction():
-    body = octagon(2, 16, 50, 62, 16)
     return [
-        (body, SLATE),
-        (body & poly([(2, 40), (24, 62), (2, 62)]), GRAY),
-        (stroke([(14, 34), (20, 28)], 4, 3), LIGHT),
-        (stroke([(32, 30), (46, 16)], 5, 3), DARK),
-        (dot(51, 12, 10, 7), RED),
-        (dot(51, 12, 4, 3), YELLOW),
+        (stroke([(6, 6), (20, 20)], 6, 4) | stroke([(58, 6), (44, 20)], 6, 4) | stroke([(6, 58), (20, 44)], 6, 4) | stroke([(58, 58), (44, 44)], 6, 4), SLATE),
+        (octagon(20, 20, 44, 44, 8), RED),
+        (octagon(27, 27, 37, 37, 3), YELLOW),
     ]
 
 
 def mutually_assured():
-    disc = octagon(0, 0, 63, 63, 19)
-    blades = poly([(32, 30), (12, 10), (52, 10)]) | poly([(26, 38), (8, 56), (26, 56)]) | poly([(38, 38), (56, 56), (38, 56)])
     return [
-        (disc, PEACH),
-        (blades, DARK),
+        (octagon(6, 6, 58, 58, 16), PEACH),
+        (stroke([(14, 14), (50, 50)], 5, 3) | stroke([(50, 14), (14, 50)], 5, 3), DARK),
         (dot(32, 32, 9, 6), RED),
     ]
 
 
 def walking_infested():
-    legs = stroke([(4, 16), (16, 28), (48, 28), (60, 16)], 5, 3) | stroke([(4, 60), (16, 48), (48, 48), (60, 60)], 5, 3)
-    body = octagon(12, 12, 52, 60, 14)
     return [
-        (legs, DRED),
-        (body, RED),
-        (body & right_half(), DRED),
-        (octagon(18, 24, 30, 36, 4), PEACH),
-        (octagon(34, 24, 46, 36, 4), PEACH),
+        (stroke([(22, 28), (22, 40), (10, 52)], 4, 3) | stroke([(42, 28), (42, 40), (54, 52)], 4, 3) | stroke([(32, 30), (32, 54)], 4, 3), DRED),
+        (octagon(14, 4, 50, 34, 10), RED),
+        (dot(10, 54, 6, 4) | dot(32, 56, 6, 4) | dot(54, 54, 6, 4), PEACH),
     ]
 
 
 def alien_incubation():
-    back = octagon(34, 18, 62, 62, 11)
-    egg = octagon(6, 2, 44, 62, 15)
-    crack = stroke([(16, 24), (26, 34), (18, 42), (30, 54)], 3, 2)
     return [
-        (back, DPURPLE),
-        (egg, PURPLE),
-        (crack & egg, LAVENDER),
+        (octagon(30, 22, 60, 62, 11), DPURPLE),
+        (octagon(4, 2, 38, 54, 13), PURPLE),
+        (stroke([(14, 18), (20, 24), (14, 30)], 3, 2), LAVENDER),
     ]
 
 
 def barrier():
-    outer = poly([(4, 2), (60, 2), (60, 36), (32, 64), (4, 36)])
-    inner = poly([(14, 12), (50, 12), (50, 32), (32, 50), (14, 32)])
     return [
-        (outer, NAVY),
-        (inner, BLUE),
-        (inner & right_half(), LIGHT),
+        (stroke([(6, 44), (6, 26), (24, 8), (40, 8), (58, 26), (58, 44)], 6, 4), NAVY),
+        (stroke([(18, 50), (18, 32), (28, 22), (36, 22), (46, 32), (46, 50)], 5, 3), BLUE),
+        (dot(32, 44, 6, 4), LIGHT),
     ]
 
 
 def avenger():
-    head = octagon(4, 14, 60, 62, 18)
     return [
-        (stroke([(16, 20), (32, 6), (48, 20)], 6, 4), DRED),
-        (head, SLATE),
-        (head & poly([(0, 40), (24, 64), (0, 64)]), GRAY),
-        (stroke([(14, 28), (24, 38)], 4, 3) | stroke([(50, 28), (40, 38)], 4, 3), RED),
-        (stroke([(22, 52), (42, 52)], 3, 2), DARK),
+        (stroke([(8, 58), (32, 34), (56, 58)], 5, 3), DRED),
+        (stroke([(14, 36), (32, 18), (50, 36)], 5, 3), RED),
+        (stroke([(22, 14), (32, 4), (42, 14)], 4, 3), PEACH),
     ]
 
 
 def inspiration():
     return [
-        (octagon(10, 10, 54, 54, 5), PEACH),
-        (poly([(32, 0), (64, 32), (32, 64), (0, 32)]), YELLOW),
-        (octagon(20, 20, 44, 44, 8), LIGHT),
+        (stroke([(32, 4), (32, 60)], 5, 3) | stroke([(4, 32), (60, 32)], 5, 3), PEACH),
+        (stroke([(14, 14), (50, 50)], 4, 3) | stroke([(50, 14), (14, 50)], 4, 3), YELLOW),
+        (octagon(22, 22, 42, 42, 7), LIGHT),
     ]
 
 
 def evasive_maneuvers():
     return [
-        (stroke([(6, 14), (26, 14)], 5, 3) | stroke([(6, 50), (26, 50)], 5, 3), DRED),
-        (stroke([(6, 32), (30, 32)], 5, 3), PEACH),
-        (stroke(right_chevron(26, 6, 26), 8, 5), RED),
+        (stroke([(6, 50), (22, 50), (34, 38), (34, 26), (46, 14), (54, 14)], 5, 3), DRED),
+        (stroke([(46, 6), (54, 14), (46, 22)], 4, 3), RED),
+        (dot(10, 50, 6, 4), PEACH),
     ]
 
 
 def transmutation():
-    arrow = stroke([(32, 56), (32, 16)], 8, 6) | stroke([(10, 28), (32, 6), (54, 28)], 7, 5)
     return [
-        (octagon(10, 46, 54, 64, 7), DARK),
-        (arrow, PURPLE),
-        (arrow & right_half(), DPURPLE),
+        (stroke([(6, 58), (20, 58), (20, 44), (34, 44), (34, 30), (48, 30)], 5, 3), DPURPLE),
+        (stroke([(40, 10), (54, 10), (54, 24)], 5, 3) | stroke([(34, 30), (54, 10)], 5, 3), PURPLE),
     ]
 
 
 def aggressive_deployment():
-    def down(y):
-        return stroke([(10, y), (32, y + 22), (54, y)], 5, 3)
     return [
-        (stroke([(6, 58), (58, 58)], 5, 3), GRAY2),
-        (down(6), DRED),
-        (down(24), RED),
+        (stroke([(12, 4), (12, 40)], 5, 3) | stroke([(52, 4), (52, 40)], 5, 3), DRED),
+        (stroke([(32, 4), (32, 50)], 6, 4), RED),
+        (stroke([(4, 58), (60, 58)], 4, 3), GRAY2),
     ]
 
 
