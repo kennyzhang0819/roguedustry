@@ -9,7 +9,6 @@ import arc.util.*;
 import mindustry.content.*;
 import mindustry.content.TechTree.*;
 import mindustry.game.EventType.*;
-import mindustry.game.*;
 import mindustry.gen.*;
 import mindustry.type.*;
 import mindustry.ui.fragments.*;
@@ -104,11 +103,26 @@ public class RogueRun{
         for(Block block : content.blocks()){
             if(disabled(block)) state.rules.bannedBlocks.add(block);
         }
-        for(var objective : state.rules.objectives){
-            objective.hidden = true;
-            objective.markers = new MapObjectives.ObjectiveMarker[0];
-        }
+        if(tutorial(state.rules.sector)) skipTutorial();
         if(!headless) ui.hudfrag.blockfrag.rebuild();
+    }
+
+    static boolean tutorial(@Nullable Sector sector){
+        return sector != null && sector.preset != null && Seq.with(SectorPresets.groundZero, SectorPresets.frozenForest, SectorPresets.fungalPass, SectorPresets.frontier).contains(sector.preset);
+    }
+
+    //these maps run world processors that keep the map small and the waves off until the tutorial steps are done
+    static void skipTutorial(){
+        state.rules.objectives.clear();
+        Seq<Building> processors = new Seq<>();
+        for(Building build : Groups.build){
+            if(build.block == Blocks.worldProcessor) processors.add(build);
+        }
+        for(Building build : processors) build.tile.remove();
+        if(state.rules.limitMapArea) Call.setMapArea(0, 0, world.width(), world.height());
+        state.rules.waves = true;
+        state.rules.waveTimer = true;
+        state.rules.waveSending = true;
     }
 
     static void hideHints(){
