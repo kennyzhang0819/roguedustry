@@ -34,9 +34,12 @@ Theme colors: curses red, relics purple, modifiers by rarity (common green, unco
 ## Icon style
 Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in the game source):
 - 64x64, flat colors, no outlines, transparent background. Use the game's palette (listed at the top of the script).
-- Every edge is straight or exactly 45°. The script stops with an error if a shape breaks this. Every corner, inside and out, has a small 45° cut, so shapes look slightly rounded.
-- Shapes are thick bands (about 10px), overlapping and touching each other. Pieces never float apart.
-- Fill most of the frame. Bold shapes, few tiny details. A main color plus a darker partner of the same hue for depth.
+- Every edge is straight or exactly 45°. The script stops with an error if a shape breaks this. Corners get only a tiny cut; the long 45° slopes do the rounding.
+- Draw irregular shapes, not rounded boxes or even-width strokes: pieces that taper to a point, flat-topped peaks, V notches, chipped corners. Width changes within a shape (for example 16px at the base, 6px at the tip).
+- Shapes overlap in layers, the back one darker. Keep icons off-center and lopsided; shapes may run off the frame edge.
+- Fill over half the frame (the game's average is about 57%). Use 2 to 4 colors, roughly half for the main color, a third for the second, the rest for one small bright accent.
+- Pair the theme color with a gray or slate of similar brightness, not a darker version of itself. Give a big shape a light side and a shadow side in two close tones (split it down the middle).
+- Curses lead with red, relics with purple. Don't reuse one layout for every icon; the game's icons don't share one.
 - Compare new icons side by side with the game's icons before committing.
 - `tools/`: run report, icon script and source download script (not part of the mod)
 
