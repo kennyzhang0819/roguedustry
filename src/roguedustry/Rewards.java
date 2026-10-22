@@ -39,6 +39,9 @@ public class Rewards{
             this.rarity = rarity;
             this.max = max;
             this.description = description;
+            if(rarity == Rarity.relic ? max != 1 : max < 2){
+                throw new IllegalArgumentException(name + ": relics can't stack and modifiers must stack");
+            }
         }
 
         public boolean hasIcon(){
@@ -74,7 +77,7 @@ public class Rewards{
 
     duoDrills = new Reward("duo-drills", "Duo Drills", Rarity.common, 3, "Duos fire 50% faster."),
     hardenedShields = new Reward("hardened-shields", "Hardened Shields", Rarity.uncommon, 2, "All your unit and structure shields are 100% stronger."),
-    ironLegion = new Reward("iron-legion", "Iron Legion", Rarity.rare, 1, "New Daggers, Maces and Fortresses get a shield as big as their health.");
+    ironLegion = new Reward("iron-legion", "Iron Legion", Rarity.rare, 2, "New Daggers, Maces and Fortresses get a shield as big as their health.");
 
     public static final Seq<Reward> all = Seq.with(coreLink, livingMetal, gracePeriod, prefab, biggerCore, warFactory, recycle, fieldCommander, oreMagnet, scrapRebirth, lastStand, absolution, duoDrills, hardenedShields, ironLegion);
 
