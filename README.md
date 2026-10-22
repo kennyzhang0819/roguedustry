@@ -12,7 +12,7 @@ A roguelike layer on top of the Mindustry v8 Serpulo campaign. The campaign play
 
 - **Relics** are very strong. You pick 1 of 3 each time you land on a new sector. You can only have one of each.
 - **Modifiers** are smaller changes, often to one turret or unit. They come in Common, Uncommon and Rare. You pick 1 of 3 for every 10 waves you clear on a sector. They stack: you can pick the same one again, up to a limit, and each copy adds its effect again.
-- Both last for the whole run. There are only 4 relics and 3 modifiers so far. The Absolution relic removes 2 random curses.
+- Both last for the whole run. There are 12 relics and 3 modifiers so far. The Absolution relic removes 2 random curses.
 
 ### Mutators
 
