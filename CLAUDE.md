@@ -14,7 +14,7 @@ Theme colors: curses red, relics purple, modifiers by rarity (common green, unco
 ## Commands
 - `./build.sh` builds `build/Roguedustry.jar`. It downloads the game jar into `libs/` the first time.
 - `./report.sh` prints the campaign sectors, disabled blocks, relics, modifiers and mutators, without opening the game.
-- To install, copy `build/Roguedustry.jar` into `%APPDATA%\Mindustry\mods\`.
+- `./play.sh` builds, installs the mod into `%APPDATA%\Mindustry\mods\` and starts the game. It uses the user's real game data, so don't use it for tests.
 
 ## Testing
 - After a change: build, then run `./report.sh`.
