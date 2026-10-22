@@ -1,6 +1,6 @@
 # Roguedustry
 
-A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree that opens up the way the campaign does. The player picks a relic at the start of each map and modifiers during it; both last the whole run. Enemies get StarCraft II co-op style mutators, paid for with points from a terror level that rises every map. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
+A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree. Research is free: each node unlocks as soon as its campaign requirements are met. The player picks a relic at the start of each map and modifiers during it; both last the whole run. Enemies get StarCraft II co-op style mutators, paid for with points from a terror level that rises every map. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
 
 Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Mutators should be very punishing.
 
@@ -11,7 +11,7 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 
 ## Commands
 - `./build.sh` builds `build/Roguedustry.jar`. It downloads the game jar into `libs/` the first time.
-- `./report.sh` prints the campaign maps with what unlocks them, total research cost, relics, modifiers and mutators, without opening the game.
+- `./report.sh` prints the campaign maps with what unlocks them, the starting tech, relics, modifiers and mutators, without opening the game.
 - To install, copy `build/Roguedustry.jar` into `%APPDATA%\Mindustry\mods\`.
 
 ## Testing
@@ -22,12 +22,12 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 
 ## Where things are
 - `src/roguedustry/RogueRun.java`: run state, saving the run, the map's save slot, starting maps, wins and losses, relic and modifier effects
-- `src/roguedustry/Tech.java`: research and which campaign maps are open, read from the game's own tech tree
+- `src/roguedustry/Tech.java`: which tech tree nodes and campaign maps are unlocked, read from the game's own tech tree
 - `src/roguedustry/Mission.java`: one map of the run (a campaign map or a random one) and its rules
 - `src/roguedustry/Rewards.java`: relics and modifiers, their rarity, how many picks per map
 - `src/roguedustry/Mutators.java`: enemy mutators, terror level and points
 - `src/roguedustry/MapGen.java`: random maps with a land path and a river to the core
-- `src/roguedustry/RogueUI.java`: menu, map picker, research window, relic and modifier picks, side panel
+- `src/roguedustry/RogueUI.java`: menu, map picker, tech tree window, relic and modifier picks, side panel
 - `tools/`: run report and source download script (not part of the mod)
 
 ## Game source

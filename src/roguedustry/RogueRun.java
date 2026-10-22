@@ -30,8 +30,6 @@ public class RogueRun{
     public int missionsCleared, endless;
     public final ObjectSet<UnlockableContent> unlocked = new ObjectSet<>();
     public final ObjectSet<SectorPreset> cleared = new ObjectSet<>();
-    public final ObjectMap<UnlockableContent, ItemSeq> progress = new ObjectMap<>();
-    public final ItemSeq bank = new ItemSeq();
     public final ObjectIntMap<Rewards.Reward> rewards = new ObjectIntMap<>();
     public final Seq<Mutators.Mutator> mutators = new Seq<>();
     public @Nullable String mission, slot;
@@ -69,19 +67,6 @@ public class RogueRun{
 
     public Seq<Mutators.Mutator> mutatorsFor(Mission m){
         return Mutators.roll(terror(), id * 31L + m.key().hashCode() * 7919L + missionsCleared);
-    }
-
-    public int available(Item item){
-        Building core = active() ? state.rules.defaultTeam.core() : null;
-        return bank.get(item) + (core == null ? 0 : core.items.get(item));
-    }
-
-    public void spend(Item item, int amount){
-        int fromBank = Math.min(amount, bank.get(item));
-        bank.remove(item, fromBank);
-        amount -= fromBank;
-        Building core = state.rules.defaultTeam.core();
-        if(amount > 0 && active() && core != null) core.items.remove(item, amount);
     }
 
     public Seq<Mission> missionChoices(){
@@ -128,9 +113,11 @@ public class RogueRun{
 
     void onMissionLoaded(){
         markProduced();
-        Tech.autoUnlock(this);
+        int count = Tech.autoUnlock(this);
         save();
+        techVersion++;
         syncWhitelist(state.rules);
+        if(count > 0 && !headless) ui.showInfoToast(count + " new tech tree nodes unlocked", 4f);
     }
 
     public @Nullable Saves.SaveSlot saveSlot(){
@@ -152,8 +139,6 @@ public class RogueRun{
             if(m.preset != null) cleared.add(m.preset);
             else endless++;
             missionsCleared++;
-            Building core = state.rules.defaultTeam.core();
-            if(core != null) core.items.each(bank::add);
             mission = null;
             mutators.clear();
             pendingRelic = false;
@@ -203,14 +188,6 @@ public class RogueRun{
         save();
     }
 
-    public boolean research(TechTree.TechNode node){
-        boolean done = Tech.contribute(this, node);
-        save();
-        techVersion++;
-        if(active()) syncWhitelist(state.rules);
-        return done;
-    }
-
     void syncWhitelist(Rules rules){
         rules.blockWhitelist = true;
         rules.hideBannedBlocks = true;
@@ -232,7 +209,8 @@ public class RogueRun{
             if(build.liquids != null && build.liquids.currentAmount() > 0.01f && unlocked.add(build.liquids.current())) any = true;
         }
         if(any){
-            Tech.autoUnlock(this);
+            int count = Tech.autoUnlock(this);
+            if(count > 0 && !headless) ui.showInfoToast(count + " new tech tree nodes unlocked", 4f);
             save();
             techVersion++;
             syncWhitelist(state.rules);
@@ -336,11 +314,9 @@ public class RogueRun{
         out.append("mutators=").append(mutators.map(m -> m.id).toString(",")).append('\n');
         out.append("unlocked=").append(unlocked.toSeq().map(RogueRun::key).toString(",")).append('\n');
         out.append("cleared=").append(cleared.toSeq().map(c -> c.name).toString(",")).append('\n');
-        out.append("bank=").append(items(bank)).append('\n');
         out.append("rewards=");
         for(var e : rewards) out.append(e.key.id).append(':').append(e.value).append(',');
         out.append('\n');
-        for(var e : progress) out.append("progress.").append(key(e.key)).append('=').append(items(e.value)).append('\n');
         Core.settings.put(saveKey, out.toString());
     }
 
@@ -382,18 +358,11 @@ public class RogueRun{
                             if(p != null) run.cleared.add(p);
                         }
                     }
-                    case "bank" -> readItems(v, run.bank);
                     case "rewards" -> {
                         for(String s : list(v)){
                             String[] parts = s.split(":");
                             Rewards.Reward reward = Rewards.get(parts[0]);
                             if(reward != null) run.rewards.put(reward, Integer.parseInt(parts[1]));
-                        }
-                    }
-                    default -> {
-                        if(k.startsWith("progress.")){
-                            UnlockableContent c = fromKey(k.substring("progress.".length()));
-                            if(c != null) readItems(v, run.progress.get(c, ItemSeq::new));
                         }
                     }
                 }
@@ -420,20 +389,6 @@ public class RogueRun{
             return content.getByName(ContentType.valueOf(parts[0]), parts[1]) instanceof UnlockableContent u ? u : null;
         }catch(IllegalArgumentException e){
             return null;
-        }
-    }
-
-    static String items(ItemSeq seq){
-        StringBuilder out = new StringBuilder();
-        seq.each((item, amount) -> out.append(item.name).append(':').append(amount).append(','));
-        return out.toString();
-    }
-
-    static void readItems(String v, ItemSeq out){
-        for(String s : list(v)){
-            String[] parts = s.split(":");
-            Item item = content.item(parts[0]);
-            if(item != null) out.add(item, Integer.parseInt(parts[1]));
         }
     }
 

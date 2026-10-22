@@ -1,7 +1,6 @@
 package roguedustry;
 
 import arc.struct.*;
-import arc.util.*;
 import mindustry.content.*;
 import mindustry.content.TechTree.*;
 import mindustry.ctype.*;
@@ -35,7 +34,7 @@ public class Tech{
     }
 
     public static String describe(Objective o){
-        if(o instanceof Research r) return "research " + r.content.localizedName;
+        if(o instanceof Research r) return (r.content instanceof Item || r.content instanceof Liquid ? "get " : "unlock ") + r.content.localizedName;
         if(o instanceof Produce p) return "get " + p.content.localizedName;
         if(o instanceof SectorComplete s) return "clear " + s.preset.localizedName;
         if(o instanceof OnSector s) return "play " + s.preset.localizedName;
@@ -50,67 +49,25 @@ public class Tech{
         return !run.unlocked.contains(node.content) && node.parent != null && run.unlocked.contains(node.parent.content);
     }
 
-    public static boolean autoUnlock(RogueRun run){
-        boolean any = false, changed = true;
+    public static int autoUnlock(RogueRun run){
+        int count = 0;
+        boolean changed = true;
         Seq<TechNode> all = nodes();
         while(changed){
             changed = false;
             for(TechNode node : all){
-                if(open(run, node) && cost(run, node).length == 0){
+                if(open(run, node)){
                     run.unlocked.add(node.content);
-                    changed = any = true;
+                    changed = true;
+                    count++;
                 }
             }
         }
-        return any;
+        return count;
     }
 
-    public static ItemStack[] cost(RogueRun run, TechNode node){
-        return Structs.filter(ItemStack.class, node.requirements, s -> s.amount > 0);
-    }
-
-    public static int paid(RogueRun run, TechNode node, Item item){
-        ItemSeq seq = run.progress.get(node.content);
-        return seq == null ? 0 : seq.get(item);
-    }
-
-    public static boolean canAfford(RogueRun run, TechNode node){
-        for(ItemStack stack : cost(run, node)){
-            if(paid(run, node, stack.item) + run.available(stack.item) < stack.amount) return false;
-        }
-        return true;
-    }
-
-    public static boolean canContribute(RogueRun run, TechNode node){
-        for(ItemStack stack : cost(run, node)){
-            if(paid(run, node, stack.item) < stack.amount && run.available(stack.item) > 0) return true;
-        }
-        return false;
-    }
-
-    public static boolean contribute(RogueRun run, TechNode node){
-        if(!open(run, node)) return false;
-        ItemSeq seq = run.progress.get(node.content, ItemSeq::new);
-        boolean finished = true;
-        for(ItemStack stack : cost(run, node)){
-            int need = stack.amount - seq.get(stack.item);
-            int take = Math.min(need, run.available(stack.item));
-            if(take > 0){
-                run.spend(stack.item, take);
-                seq.add(stack.item, take);
-            }
-            if(seq.get(stack.item) < stack.amount) finished = false;
-        }
-        if(finished){
-            run.progress.remove(node.content);
-            run.unlocked.add(node.content);
-            autoUnlock(run);
-        }
-        return finished;
-    }
-
-    public static Seq<TechNode> researchable(RogueRun run){
-        return nodes().select(n -> !(n.content instanceof SectorPreset) && open(run, n) && cost(run, n).length > 0);
+    public static Seq<TechNode> unlockedNodes(RogueRun run){
+        return nodes().select(n -> !(n.content instanceof SectorPreset) && n.parent != null && run.unlocked.contains(n.content));
     }
 
     public static Seq<TechNode> lockedNext(RogueRun run){

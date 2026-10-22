@@ -20,6 +20,7 @@ import static mindustry.Vars.*;
 public class RogueUI{
     public @Nullable BaseDialog menuDialog, missionDialog, researchDialog, rewardDialog, overDialog;
     public Seq<Rewards.Reward> offered = new Seq<>();
+    static final String techInfoKey = "roguedustry-tech-info";
 
     public void init(){
         ui.menufrag.addButton("Roguedustry", Icon.play, this::showMenu);
@@ -160,7 +161,7 @@ public class RogueUI{
         }
 
         missionDialog.buttons.defaults().size(220f, 60f);
-        missionDialog.buttons.button("Research", Icon.tree, this::showResearch);
+        missionDialog.buttons.button("Tech tree", Icon.tree, this::showResearch);
         missionDialog.buttons.button("Main menu", Icon.exit, () -> {
             missionDialog.hide();
             if(state.isGame()) logic.reset();
@@ -174,7 +175,7 @@ public class RogueUI{
     }
 
     public void showResearch(){
-        researchDialog = new BaseDialog("Research");
+        researchDialog = new BaseDialog("Tech tree");
         Table list = new Table();
         int[] version = {-1};
         list.update(() -> {
@@ -183,11 +184,15 @@ public class RogueUI{
             rebuildResearch(list);
         });
 
-        researchDialog.cont.add("Items you saved from cleared maps are used first, then items in your core.").color(Color.lightGray).row();
         researchDialog.cont.pane(list).grow();
         researchDialog.addCloseButton();
         pauseWhileShown(researchDialog);
         researchDialog.show();
+
+        if(!Core.settings.getBool(techInfoKey, false)){
+            Core.settings.put(techInfoKey, true);
+            ui.showInfo("In roguedustry, tech tree nodes are immediately unlocked upon entering a new level.");
+        }
     }
 
     static void pauseWhileShown(BaseDialog dialog){
@@ -205,32 +210,21 @@ public class RogueUI{
         table.clear();
         table.top().left().defaults().left().pad(3f);
 
-        Seq<TechNode> ready = Tech.researchable(run);
-        ready.sort(n -> n.depth);
-        table.add("Ready to research (" + ready.size + ")").color(Pal.accent).row();
-        for(TechNode node : ready){
-            table.table(Styles.black6, row -> {
-                row.left().margin(6f);
-                row.image(node.content.uiIcon).size(40f);
-                row.add(node.content.localizedName).width(200f).padLeft(8f).left();
-                row.table(costs -> {
-                    costs.left();
-                    for(ItemStack stack : Tech.cost(run, node)){
-                        costs.image(stack.item.uiIcon).size(24f).padLeft(8f);
-                        costs.label(() -> {
-                            int paid = Tech.paid(run, node, stack.item);
-                            boolean enough = paid + run.available(stack.item) >= stack.amount;
-                            return (paid >= stack.amount ? "[accent]" : enough ? "" : "[scarlet]") + paid + "/" + stack.amount;
-                        }).padLeft(3f);
-                    }
-                }).width(440f).left();
-                row.button("Research", () -> run.research(node)).size(130f, 44f).disabled(b -> !Tech.canContribute(run, node));
-            }).growX().row();
-        }
+        Seq<TechNode> unlocked = Tech.unlockedNodes(run);
+        unlocked.sort(n -> n.depth);
+        table.add("Unlocked (" + unlocked.size + ")").color(Pal.accent).row();
+        table.table(grid -> {
+            grid.left();
+            int i = 0;
+            for(TechNode node : unlocked){
+                grid.image(node.content.uiIcon).size(40f).pad(3f).tooltip(node.content.localizedName);
+                if(++i % 16 == 0) grid.row();
+            }
+        }).row();
 
         Seq<TechNode> locked = Tech.lockedNext(run);
         if(locked.any()){
-            table.add("Needs something else first").color(Color.lightGray).padTop(12f).row();
+            table.add("Unlocks next").color(Color.lightGray).padTop(12f).row();
             for(TechNode node : locked){
                 table.table(row -> {
                     row.left();
@@ -324,14 +318,7 @@ public class RogueUI{
             return "[lightgray]Relics: " + relics + "   Modifiers: " + (run.rewards.size - relics) + next;
         }).row();
 
-        float[] timer = {0f};
-        panel.button("Research", Icon.tree, Styles.cleart, this::showResearch).height(36f).growX()
-            .update(b -> {
-                if(!RogueRun.active() || (timer[0] += Time.delta) < 30f) return;
-                timer[0] = 0f;
-                int ready = Tech.researchable(run()).count(n -> Tech.canAfford(run(), n));
-                b.setText(ready > 0 ? "Research (" + ready + " ready)" : "Research");
-            });
+        panel.button("Tech tree", Icon.tree, Styles.cleart, this::showResearch).height(36f).growX();
 
         Table waves = ui.hudGroup.find("waves");
         if(waves != null){

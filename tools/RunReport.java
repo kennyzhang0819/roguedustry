@@ -27,17 +27,9 @@ public class RunReport{
         }
 
         System.out.println();
-        System.out.println("== Research ==");
-        ItemSeq total = new ItemSeq();
-        int count = 0;
-        for(TechNode node : Tech.nodes()){
-            if(node.content instanceof SectorPreset) continue;
-            count++;
-            for(ItemStack stack : node.requirements) total.add(stack.item, stack.amount);
-        }
-        System.out.println(count + " things to research. Unlocked at the start: " + run.unlocked.toSeq().map(c -> c.name));
-        System.out.println("Total cost of the whole tree:");
-        total.each((item, amount) -> System.out.printf("  %-14s %9d%n", item.name, amount));
+        System.out.println("== Tech tree ==");
+        System.out.println("(research is free: a node unlocks as soon as its map, items and earlier nodes are done)");
+        System.out.println(Tech.nodes().count(n -> !(n.content instanceof SectorPreset)) + " nodes. Unlocked at the start: " + Tech.unlockedNodes(run).map(n -> n.content.name));
 
         System.out.println();
         System.out.println("== Relics and modifiers ==");

@@ -51,27 +51,35 @@ public class AutoTest{
         Log.info("[Rogue-Test] Mission loaded. active=@ slot=@ relicPending=@", RogueRun.active(), run.slot, run.pendingRelic);
         shot("01-relic");
 
-        later(1f, () -> rui.choose(0));
-        later(2f, () -> state.wave = 3);
-        later(4f, () -> shot("02-modifier"));
-        later(5f, () -> rui.choose(0));
-        later(6f, () -> {
+        later(1f, () -> {
+            rui.choose(0);
+            Core.settings.remove(RogueUI.techInfoKey);
+        });
+        later(2f, rui::showResearch);
+        later(4f, () -> shot("02-tech-info"));
+        later(5f, () -> Core.scene.getDialog().hide());
+        later(6f, () -> shot("03-tech"));
+        later(7f, () -> rui.researchDialog.hide());
+        later(8f, () -> state.wave = 3);
+        later(10f, () -> shot("04-modifier"));
+        later(11f, () -> rui.choose(0));
+        later(12f, () -> {
             run.mutators.set(Mutators.all);
             logic.runWave();
         });
-        later(8f, () -> {
+        later(14f, () -> {
             Seq<Unit> enemies = state.rules.waveTeam.data().units.copy();
             Log.info("[Rogue-Test] enemies=@ speed=@ longRange=@", enemies.size, enemies.count(u -> u.hasEffect(Mutators.speedEffect)), enemies.count(u -> u.controller() instanceof Mutators.LongRangeAI));
-            shot("03-hud");
+            shot("05-hud");
             enemies.each(Unit::kill);
         });
-        later(11f, () -> Log.info("[Rogue-Test] after kill: enemies=@ (revived)", Groups.unit.count(u -> u.team == state.rules.waveTeam)));
-        later(12f, () -> {
+        later(19f, () -> Log.info("[Rogue-Test] after kill: enemies=@ (revived)", Groups.unit.count(u -> u.team == state.rules.waveTeam)));
+        later(20f, () -> {
             state.gameOver = true;
             Events.fire(new GameOverEvent(state.rules.defaultTeam));
         });
-        later(17f, () -> shot("04-missions"));
-        later(18f, () -> {
+        later(25f, () -> shot("06-missions"));
+        later(26f, () -> {
             Log.info("[Rogue-Test] RESULT cleared=@ rewards=@ slotGone=@ next=@", run.missionsCleared, run.rewards.keys().toSeq().map(r -> r.name), run.saveSlot() == null, run.missionChoices().map(Mission::name));
             Core.app.exit();
         });
