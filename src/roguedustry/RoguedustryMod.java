@@ -24,5 +24,6 @@ public class RoguedustryMod extends Mod{
     @Override
     public void loadContent(){
         Mutators.load();
+        Rewards.load();
     }
 }

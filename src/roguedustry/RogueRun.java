@@ -6,20 +6,32 @@ import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
 import mindustry.content.TechTree.*;
+import mindustry.entities.*;
+import mindustry.entities.units.*;
+import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
 import mindustry.type.*;
 import mindustry.world.*;
+import mindustry.world.blocks.*;
+import mindustry.world.blocks.ConstructBlock.*;
 import mindustry.world.blocks.defense.ForceProjector.*;
+import mindustry.world.blocks.distribution.*;
 import mindustry.world.blocks.production.Drill.*;
+import mindustry.world.blocks.production.SolidPump.*;
+import mindustry.world.blocks.storage.*;
+import mindustry.world.blocks.storage.CoreBlock.*;
+import mindustry.world.blocks.units.Reconstructor.*;
+import mindustry.world.blocks.units.UnitFactory.*;
 
 import static mindustry.Vars.*;
 
 public class RogueRun{
-    public static final String saveKey = "roguedustry-run";
+    public static final String saveKey = "roguedustry-run", graceTag = "roguedustry-grace", prefabTag = "roguedustry-prefab", lastStandTag = "roguedustry-last-stand";
 
     public static @Nullable RogueRun current;
     static final ObjectMap<TechNode, ItemStack[]> realCosts = new ObjectMap<>();
+    static final ObjectIntMap<CoreBlock> realCapacity = new ObjectIntMap<>();
 
     public long id;
     public int launches, picksTaken;
@@ -57,11 +69,13 @@ public class RogueRun{
         }
         control.checkAutoUnlocks();
         lockSectors();
+        setCoreSize(current.stacks(Rewards.biggerCore) > 0);
     }
 
     public static void leave(){
         for(var e : realCosts) e.key.requirements = e.value;
         realCosts.clear();
+        setCoreSize(false);
         Profile.switchTo(Profile.player);
         Planets.serpulo.allowLaunchToNumbered = true;
         current = null;
@@ -76,6 +90,14 @@ public class RogueRun{
 
     static void lockSectors(){
         Planets.serpulo.allowLaunchToNumbered = SectorPresets.planetaryTerminal.sector.isCaptured();
+    }
+
+    static void setCoreSize(boolean big){
+        for(Block block : content.blocks()){
+            if(!(block instanceof CoreBlock core)) continue;
+            if(!realCapacity.containsKey(core)) realCapacity.put(core, core.itemCapacity);
+            core.itemCapacity = realCapacity.get(core) * (big ? 2 : 1);
+        }
     }
 
     public static boolean active(){
@@ -147,6 +169,10 @@ public class RogueRun{
                 Log.info("[Rogue] Curse lifted: '@'", lifted.name);
             }
         }
+        if(reward == Rewards.biggerCore){
+            setCoreSize(true);
+            if(state.isGame()) for(CoreBuild core : state.rules.defaultTeam.cores()) core.onProximityUpdate();
+        }
         save();
         Log.info("[Rogue] Took '@'", reward.name);
     }
@@ -178,6 +204,7 @@ public class RogueRun{
         if(state.isPaused() || state.gameOver) return;
 
         updateShields();
+        checkLastStand();
 
         if((unlockTimer += Time.delta) >= 120f){
             unlockTimer = 0f;
@@ -189,13 +216,28 @@ public class RogueRun{
 
         countPicks();
 
+        if(stacks(Rewards.gracePeriod) > 0 && state.rules.waves && state.rules.waveTimer && state.wave <= 1 && !state.rules.tags.getBool(graceTag)){
+            state.rules.tags.put(graceTag, "true");
+            state.wavetime += 3f * Time.toMinutes;
+        }
+
+        if(stacks(Rewards.fieldCommander) > 0){
+            for(Unit unit : state.rules.defaultTeam.data().units){
+                if(unit.spawnedByCore && !unit.hasEffect(Rewards.commanderEffect)) unit.apply(Rewards.commanderEffect);
+            }
+        }
+
         Building core = state.rules.defaultTeam.core();
-        float all = stacks(Rewards.overclock) > 0 ? 1.5f : 1f;
         float duos = 1f + 0.5f * stacks(Rewards.duoDrills);
+        float factories = stacks(Rewards.warFactory) > 0 ? 2f : 1f, mining = stacks(Rewards.oreMagnet) > 0 ? 3f : 1f;
         boolean link = stacks(Rewards.coreLink) > 0, heal = stacks(Rewards.livingMetal) > 0;
 
         for(Building build : state.rules.defaultTeam.data().buildings){
-            float boost = build.block == Blocks.duo ? all * duos : all;
+            float boost =
+                build.block == Blocks.duo ? duos :
+                build instanceof UnitFactoryBuild || build instanceof ReconstructorBuild ? factories :
+                build instanceof DrillBuild || build instanceof SolidPumpBuild ? mining :
+                1f;
             if(boost > 1.001f) build.applyBoost(boost, 45f);
 
             if(heal && build.damaged()) build.heal(build.maxHealth * 0.01f);
@@ -204,6 +246,67 @@ public class RogueRun{
                 drill.items.each((item, amount) -> core.items.add(item, Math.min(amount, core.getMaximumAccepted(item) - core.items.get(item))));
                 drill.items.clear();
             }
+        }
+    }
+
+    void checkLastStand(){
+        if(stacks(Rewards.lastStand) <= 0 || state.rules.tags.getBool(lastStandTag)) return;
+        for(CoreBuild core : state.rules.defaultTeam.cores()){
+            if(core.health >= core.maxHealth * 0.25f) continue;
+            state.rules.tags.put(lastStandTag, "true");
+            float radius = Rewards.lastStandRadius * tilesize;
+            Seq<Unit> doomed = new Seq<>();
+            Units.nearbyEnemies(core.team, core.x, core.y, radius, doomed::add);
+            //removed instead of killed, so death curses like Self Destruction don't hit the core
+            for(Unit unit : doomed){
+                Fx.massiveExplosion.at(unit.x, unit.y);
+                unit.remove();
+            }
+            Fx.spawnShockwave.at(core.x, core.y, radius);
+            Sounds.explosionTitan.at(core);
+            if(!headless) ui.announce("[#" + Rewards.Rarity.relic.color + "]Last Stand!");
+            Log.info("[Rogue] Last Stand removed @ enemies", doomed.size);
+            return;
+        }
+    }
+
+    void prefab(Tile tile, Unit unit){
+        if(!(tile.build instanceof ConstructBuild build) || build.current == null) return;
+        Block block = build.current;
+        int used = state.rules.tags.getInt(prefabTag, 0);
+        if(used >= Rewards.prefabCount || block instanceof Conveyor || block instanceof StackConveyor || block instanceof Duct) return;
+        CoreBuild core = unit.closestCore();
+        float cost = state.rules.buildCostMultiplier;
+        if(core == null || !core.items.has(block.requirements, cost)) return;
+
+        Object config = null;
+        for(BuildPlan plan : unit.plans()){
+            if(plan.x == tile.x && plan.y == tile.y && plan.block == block) config = plan.config;
+        }
+        for(ItemStack stack : block.requirements) core.items.remove(stack.item, Math.round(stack.amount * cost));
+        state.rules.tags.put(prefabTag, String.valueOf(used + 1));
+        ConstructBlock.constructed(tile, block, unit, (byte)build.rotation, build.team, config);
+    }
+
+    void recycle(Unit unit){
+        if(unit.spawnedByCore || unit.type.internal || unit instanceof TimedKillc || !Mathf.chance(0.5)) return;
+        CoreBuild core = unit.closestCore();
+        if(core == null) return;
+        UnitType type = unit.type;
+        Team team = unit.team;
+        Core.app.post(() -> {
+            if(!active() || !core.isValid()) return;
+            Fx.spawn.at(type.spawn(team, core.x, core.y));
+        });
+    }
+
+    void scrap(Building build){
+        if(build == null || build.team != state.rules.defaultTeam || build instanceof ConstructBuild || build instanceof CoreBuild) return;
+        CoreBuild core = build.closestCore();
+        if(core == null) return;
+        for(ItemStack stack : build.block.requirements){
+            int amount = Math.round(stack.amount * state.rules.buildCostMultiplier * 0.5f);
+            core.items.add(stack.item, Math.max(0, Math.min(amount, core.getMaximumAccepted(stack.item) - core.items.get(stack.item))));
         }
     }
 
@@ -320,6 +423,21 @@ public class RogueRun{
             if(active() && e.unit.team == state.rules.defaultTeam && current.stacks(Rewards.ironLegion) > 0 && Rewards.ironLegionType(e.unit.type)){
                 e.unit.shield += e.unit.maxHealth;
             }
+        });
+
+        Events.on(BlockBuildBeginEvent.class, e -> {
+            if(e.breaking || e.unit == null || !e.unit.isPlayer() || e.team != state.rules.defaultTeam) return;
+            if(active() && current.stacks(Rewards.prefab) > 0) Core.app.post(() -> {
+                if(active()) current.prefab(e.tile, e.unit);
+            });
+        });
+
+        Events.on(UnitDestroyEvent.class, e -> {
+            if(active() && e.unit.team == state.rules.defaultTeam && current.stacks(Rewards.recycle) > 0) current.recycle(e.unit);
+        });
+
+        Events.on(BlockDestroyEvent.class, e -> {
+            if(active() && current.stacks(Rewards.scrapRebirth) > 0) current.scrap(e.tile.build);
         });
 
         Events.run(Trigger.afterGameUpdate, () -> {

@@ -1,6 +1,8 @@
 package roguedustry;
 
+import arc.*;
 import arc.graphics.*;
+import arc.graphics.g2d.*;
 import arc.math.*;
 import arc.struct.*;
 import mindustry.content.*;
@@ -39,24 +41,51 @@ public class Rewards{
             this.description = description;
         }
 
+        public boolean hasIcon(){
+            return Core.atlas.has("roguedustry-" + id);
+        }
+
+        public TextureRegion icon(){
+            return Core.atlas.find("roguedustry-" + id);
+        }
+
         public boolean isRelic(){
             return rarity == Rarity.relic;
         }
     }
 
-    public static final int wavesPerModifier = 10;
+    public static final int wavesPerModifier = 10, prefabCount = 100, lastStandRadius = 50;
+
+    public static StatusEffect commanderEffect;
 
     public static final Reward
-    coreLink = new Reward("core-link", "Core Link", Rarity.relic, 1, "All drills send what they mine straight into your core."),
-    overclock = new Reward("overclock", "Overclock", Rarity.relic, 1, "Everything you build works 50% faster."),
-    livingMetal = new Reward("living-metal", "Living Metal", Rarity.relic, 1, "All your blocks repair 2% of their health every second."),
+    coreLink = new Reward("core-link", "Core Link", Rarity.relic, 1, "All drills send what they mine straight into your core. Does not apply to extractors."),
+    livingMetal = new Reward("living-metal", "Living Metal", Rarity.relic, 1, "All your structures repair 2% of their health every second."),
+    gracePeriod = new Reward("grace-period", "Grace Period", Rarity.relic, 1, "On each new sector, the first wave comes 3 minutes later."),
+    prefab = new Reward("prefab", "Prefab", Rarity.relic, 1, "On each sector, the first " + prefabCount + " structures you place that aren't conveyors finish instantly. You still pay their cost."),
+    biggerCore = new Reward("bigger-core", "Bigger Core", Rarity.relic, 1, "Your cores hold twice as many items."),
+    warFactory = new Reward("war-factory", "War Factory", Rarity.relic, 1, "Unit factories and reconstructors work twice as fast."),
+    recycle = new Reward("recycle", "Recycle", Rarity.relic, 1, "When your units die, they have a 50% chance to come back at your nearest core."),
+    fieldCommander = new Reward("field-commander", "Field Commander", Rarity.relic, 1, "Your core unit (Alpha, Beta, Gamma) has 8 times the health and moves twice as fast."),
+    oreMagnet = new Reward("ore-magnet", "Ore Magnet", Rarity.relic, 1, "All drills and extractors mine three times as fast."),
+    scrapRebirth = new Reward("scrap-rebirth", "Scrap Rebirth", Rarity.relic, 1, "When one of your structures is destroyed, half its cost goes back into your core."),
+    lastStand = new Reward("last-stand", "Last Stand", Rarity.relic, 1, "Once per sector, when a core drops below 25% health, every enemy unit within " + lastStandRadius + " tiles of it dies."),
     absolution = new Reward("absolution", "Absolution", Rarity.relic, 1, "Removes 2 random curses."),
 
     duoDrills = new Reward("duo-drills", "Duo Drills", Rarity.common, 3, "Duos fire 50% faster."),
     hardenedShields = new Reward("hardened-shields", "Hardened Shields", Rarity.uncommon, 2, "All your unit and structure shields are 100% stronger."),
     ironLegion = new Reward("iron-legion", "Iron Legion", Rarity.rare, 1, "New Daggers, Maces and Fortresses get a shield as big as their health.");
 
-    public static final Seq<Reward> all = Seq.with(coreLink, overclock, livingMetal, absolution, duoDrills, hardenedShields, ironLegion);
+    public static final Seq<Reward> all = Seq.with(coreLink, livingMetal, gracePeriod, prefab, biggerCore, warFactory, recycle, fieldCommander, oreMagnet, scrapRebirth, lastStand, absolution, duoDrills, hardenedShields, ironLegion);
+
+    public static void load(){
+        commanderEffect = new StatusEffect("field-commander"){{
+            healthMultiplier = 8f;
+            speedMultiplier = 2f;
+            permanent = true;
+            color = Rarity.relic.color;
+        }};
+    }
 
     public static Reward get(String id){
         return all.find(r -> r.id.equals(id));

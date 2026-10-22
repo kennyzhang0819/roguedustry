@@ -29,7 +29,7 @@ Theme colors: curses red, relics purple, modifiers by rarity (common green, unco
 - `src/roguedustry/Mutators.java`: enemy mutators and the mutator offer
 - `src/roguedustry/RogueUI.java`: menu, curse, relic and modifier picks, Roguedustry Modifiers window and HUD button
 - `src/roguedustry/AutoTest.java`: the screenshot check
-- `sprites/mutators/`: mutator icons, drawn by `tools/make-icons.py` (needs Python with Pillow and numpy)
+- `sprites/mutators/`, `sprites/relics/`: curse and relic icons, drawn by `tools/make-icons.py` (needs Python with Pillow and numpy)
 
 ## Icon style
 Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in the game source):

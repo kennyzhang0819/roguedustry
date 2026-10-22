@@ -164,11 +164,12 @@ public class RogueUI{
                 int index = i;
                 row.button(card -> {
                     card.top().margin(12f);
+                    if(reward.hasIcon()) card.image(reward.icon()).size(64f).padBottom(6f).row();
                     card.add(reward.rarity.label).color(reward.rarity.color).padBottom(4f).row();
                     card.add(reward.name).color(reward.rarity.color).padBottom(8f).row();
                     card.add(reward.description).wrap().width(220f).row();
                     if(run.stacks(reward) > 0) card.add("You have " + run.stacks(reward) + " of " + reward.max).color(Color.lightGray).padTop(8f).row();
-                }, Styles.defaultb, () -> choose(index)).size(260f, 230f).pad(8f);
+                }, Styles.defaultb, () -> choose(index)).size(260f, relic ? 300f : 230f).pad(8f);
             }
         });
         pauseWhileShown(rewardDialog);
@@ -217,7 +218,11 @@ public class RogueUI{
         for(var e : run.rewards){
             if(e.key.isRelic() != relics) continue;
             any = true;
-            list.add("[#" + e.key.rarity.color + "]" + e.key.name + (e.value > 1 ? " x" + e.value : "") + "[]: [lightgray]" + e.key.description).wrap().width(680f).row();
+            list.table(line -> {
+                line.left();
+                if(e.key.hasIcon()) line.image(e.key.icon()).size(40f).padRight(8f);
+                line.add("[#" + e.key.rarity.color + "]" + e.key.name + (e.value > 1 ? " x" + e.value : "") + "[]: [lightgray]" + e.key.description).wrap().width(e.key.hasIcon() ? 630f : 680f).left();
+            }).row();
         }
         if(!any) list.add("[lightgray]none").row();
     }
