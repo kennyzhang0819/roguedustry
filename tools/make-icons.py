@@ -1,146 +1,234 @@
 import os
+import numpy as np
 from PIL import Image, ImageDraw
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "sprites", "mutators")
-
-RED, DARKRED, PEACH, WHITE, GRAY, DARK = (242, 85, 85), (168, 58, 58), (255, 220, 182), (239, 247, 255), (110, 110, 118), (60, 58, 62)
-PURPLE, LILAC, BLUE, LIGHTBLUE, YELLOW = (142, 92, 160), (211, 170, 230), (110, 132, 220), (190, 205, 255), (255, 211, 127)
+SIZE = 64
 
 
-def octagon(d, x0, y0, x1, y1, c, cut=None):
-    cut = cut if cut is not None else min(x1 - x0, y1 - y0) // 3
-    d.polygon([(x0 + cut, y0), (x1 - cut, y0), (x1, y0 + cut), (x1, y1 - cut), (x1 - cut, y1), (x0 + cut, y1), (x0, y1 - cut), (x0, y0 + cut)], fill=c)
+def hexc(h):
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def chevron(d, x, y, size, thick, c, direction="right"):
-    s, t = size, thick
-    if direction == "right":
-        d.polygon([(x, y), (x + t, y), (x + t + s, y + s), (x + t, y + 2 * s), (x, y + 2 * s), (x + s, y + s)], fill=c)
-    elif direction == "up":
-        d.polygon([(x, y + s), (x + s, y), (x + 2 * s, y + s), (x + 2 * s, y + s + t), (x + s, y + t), (x, y + s + t)], fill=c)
-    else:
-        d.polygon([(x, y), (x + s, y + s), (x + 2 * s, y), (x + 2 * s, y + t), (x + s, y + s + t), (x, y + t)], fill=c)
+LIGHT, LAVENDER, GRAY, GRAY2, SLATE = hexc("eff7ff"), hexc("d3d1ff"), hexc("5a5959"), hexc("72727a"), hexc("595a66")
+RED, DRED, PEACH, NAVY, BLUE = hexc("f25555"), hexc("a23f4c"), hexc("ffdfbc"), hexc("35387e"), hexc("47558f")
+PURPLE, DPURPLE, DARK, YELLOW = hexc("924e94"), hexc("513678"), hexc("373232"), hexc("ffd37f")
 
 
-def slant(d, x, y, w, h, c):
-    d.polygon([(x + h, y), (x + h + w, y), (x + w, y + h), (x, y + h)], fill=c)
+def kernel(r, cut):
+    return [(dx, dy) for dx in range(-r, r + 1) for dy in range(-r, r + 1) if abs(dx) + abs(dy) <= 2 * r - cut]
 
 
-def icon(name, draw_fn):
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw_fn(ImageDraw.Draw(img))
-    img.save(os.path.join(OUT, name + ".png"))
+def shift_or(mask, k):
+    pad = max(max(abs(dx), abs(dy)) for dx, dy in k)
+    p = np.pad(mask, pad)
+    out = np.zeros_like(mask)
+    for dx, dy in k:
+        out |= p[pad + dy:pad + dy + SIZE, pad + dx:pad + dx + SIZE]
+    return out
 
 
-def speed_freaks(d):
-    chevron(d, 6, 10, 22, 12, DARKRED)
-    chevron(d, 26, 10, 22, 12, RED)
+def dilate(mask, r, cut):
+    return shift_or(mask, kernel(r, cut))
 
 
-def life_leech(d):
-    d.polygon([(32, 4), (52, 24), (52, 44), (38, 58), (26, 58), (12, 44), (12, 24)], fill=RED)
-    d.polygon([(32, 4), (52, 24), (52, 44), (38, 58), (32, 58)], fill=DARKRED)
-    slant(d, 18, 32, 6, 10, PEACH)
+def erode(mask, r, cut):
+    return ~dilate(~mask, r, cut)
 
 
-def long_range(d):
-    octagon(d, 6, 6, 58, 58, GRAY, 16)
-    octagon(d, 14, 14, 50, 50, (0, 0, 0, 0), 11)
-    for box in [(29, 0, 35, 16), (29, 48, 35, 64), (0, 29, 16, 35), (48, 29, 64, 35)]:
-        d.rectangle(box, fill=WHITE)
-    d.polygon([(32, 22), (42, 32), (32, 42), (22, 32)], fill=RED)
+def soften(mask, r=2, cut=1):
+    opened = dilate(erode(mask, r, cut), r, cut)
+    return erode(dilate(opened, r, cut), r, cut)
 
 
-def just_die(d):
-    chevron(d, 18, 2, 14, 7, RED, "up")
-    octagon(d, 12, 20, 52, 50, WHITE, 10)
-    d.rectangle((20, 50, 44, 60), fill=WHITE)
-    for x in (24, 32, 40):
-        d.rectangle((x - 2, 52, x, 60), fill=DARK)
-    octagon(d, 18, 30, 29, 41, DARK, 3)
-    octagon(d, 35, 30, 46, 41, DARK, 3)
+def blank():
+    return np.zeros((SIZE, SIZE), dtype=bool)
 
 
-def self_destruction(d):
-    octagon(d, 6, 18, 46, 58, GRAY, 12)
-    slant(d, 14, 28, 6, 10, WHITE)
-    d.polygon([(38, 18), (46, 10), (52, 16), (44, 24)], fill=DARK)
-    d.polygon([(54, 2), (62, 10), (54, 18), (46, 10)], fill=RED)
-    d.polygon([(54, 7), (57, 10), (54, 13), (51, 10)], fill=YELLOW)
+def poly(points):
+    img = Image.new("1", (SIZE, SIZE), 0)
+    ImageDraw.Draw(img).polygon(points, fill=1)
+    return soften(np.array(img, dtype=bool))
 
 
-def mutually_assured(d):
-    octagon(d, 2, 2, 62, 62, PEACH, 18)
-    d.polygon([(32, 28), (14, 10), (50, 10)], fill=DARK)
-    d.polygon([(30, 34), (12, 52), (30, 52)], fill=DARK)
-    d.polygon([(34, 34), (52, 52), (34, 52)], fill=DARK)
-    octagon(d, 24, 24, 40, 40, RED, 5)
+def stroke(points, r=4, cut=3):
+    img = Image.new("1", (SIZE, SIZE), 0)
+    ImageDraw.Draw(img).line(points, fill=1, width=1)
+    return dilate(np.array(img, dtype=bool), r, cut)
 
 
-def walking_infested(d):
-    d.polygon([(2, 36), (12, 26), (18, 26), (8, 36)], fill=DARKRED)
-    d.polygon([(62, 36), (52, 26), (46, 26), (56, 36)], fill=DARKRED)
-    d.polygon([(4, 60), (14, 50), (20, 50), (10, 60)], fill=DARKRED)
-    d.polygon([(60, 60), (50, 50), (44, 50), (54, 60)], fill=DARKRED)
-    octagon(d, 14, 14, 50, 54, RED, 12)
-    octagon(d, 20, 24, 28, 32, PEACH, 2)
-    octagon(d, 36, 24, 44, 32, PEACH, 2)
+def dot(x, y, r, cut=None):
+    m = blank()
+    m[y, x] = True
+    return dilate(m, r, r if cut is None else cut)
 
 
-def alien_incubation(d):
-    octagon(d, 14, 4, 50, 60, PURPLE, 14)
-    d.polygon([(32, 4), (50, 22), (50, 46), (36, 60), (32, 60)], fill=(116, 72, 134))
-    slant(d, 20, 18, 6, 14, LILAC)
-    octagon(d, 30, 40, 38, 48, LILAC, 2)
+def octagon(x0, y0, x1, y1, cut):
+    return poly([(x0 + cut, y0), (x1 - cut, y0), (x1, y0 + cut), (x1, y1 - cut), (x1 - cut, y1), (x0 + cut, y1), (x0, y1 - cut), (x0, y0 + cut)])
 
 
-def barrier(d):
-    d.polygon([(8, 6), (56, 6), (56, 36), (32, 60), (8, 36)], fill=BLUE)
-    d.polygon([(16, 14), (48, 14), (48, 33), (32, 49), (16, 33)], fill=LIGHTBLUE)
-    d.polygon([(32, 14), (48, 14), (48, 33), (32, 49)], fill=WHITE)
+def icon(name, layers):
+    img = np.zeros((SIZE, SIZE, 4), dtype=np.uint8)
+    for mask, color in layers:
+        if color is None:
+            img[mask] = (0, 0, 0, 0)
+        else:
+            img[mask] = (*color, 255)
+    Image.fromarray(img, "RGBA").save(os.path.join(OUT, name + ".png"))
 
 
-def avenger(d):
-    octagon(d, 6, 10, 58, 58, GRAY, 14)
-    d.polygon([(12, 24), (28, 40), (28, 46), (12, 30)], fill=RED)
-    d.polygon([(52, 24), (36, 40), (36, 46), (52, 30)], fill=RED)
-    d.rectangle((20, 46, 44, 51), fill=DARK)
-    chevron(d, 18, 0, 14, 6, DARKRED, "up")
+def right_chevron(x, y, s):
+    return [(x, y), (x + s, y + s), (x, y + 2 * s)]
 
 
-def inspiration(d):
-    d.rectangle((14, 14, 50, 50), fill=PEACH)
-    d.polygon([(32, 2), (62, 32), (32, 62), (2, 32)], fill=YELLOW)
-    octagon(d, 22, 22, 42, 42, WHITE, 6)
+def right_half():
+    return poly([(32, 0), (64, 0), (64, 64), (32, 64)])
 
 
-def evasive_maneuvers(d):
-    slant(d, 2, 12, 8, 10, DARKRED)
-    slant(d, 2, 42, 8, 10, DARKRED)
-    slant(d, 8, 27, 10, 10, RED)
-    chevron(d, 26, 6, 26, 14, RED)
+def speed_freaks():
+    return [
+        (stroke([(8, 32), (22, 32)], 6, 4), PEACH),
+        (stroke(right_chevron(10, 10, 22), 6, 4), DRED),
+        (stroke(right_chevron(32, 10, 22), 6, 4), RED),
+    ]
 
 
-def transmutation(d):
-    octagon(d, 16, 44, 48, 62, DARK, 6)
-    d.polygon([(32, 2), (58, 28), (42, 28), (42, 48), (22, 48), (22, 28), (6, 28)], fill=PURPLE)
-    d.polygon([(32, 2), (58, 28), (42, 28), (42, 48), (32, 48)], fill=(116, 72, 134))
-    d.polygon([(32, 12), (38, 18), (32, 24), (26, 18)], fill=LILAC)
+def life_leech():
+    drop = poly([(32, 2), (56, 26), (56, 44), (42, 62), (22, 62), (8, 44), (8, 26)])
+    return [
+        (drop, RED),
+        (drop & right_half(), DRED),
+        (stroke([(20, 30), (20, 44), (28, 52)], 4, 3), PEACH),
+    ]
 
 
-def eminent_domain(d):
-    octagon(d, 22, 34, 62, 62, GRAY, 8)
-    d.rectangle((30, 42, 54, 54), fill=DARK)
-    d.rectangle((6, 2, 12, 62), fill=WHITE)
-    d.polygon([(12, 4), (40, 4), (30, 14), (40, 24), (12, 24)], fill=RED)
+def long_range():
+    ring = octagon(4, 4, 60, 60, 18) & ~octagon(16, 16, 48, 48, 11)
+    ticks = stroke([(32, 5), (32, 20)], 4, 3) | stroke([(32, 44), (32, 59)], 4, 3) | stroke([(5, 32), (20, 32)], 4, 3) | stroke([(44, 32), (59, 32)], 4, 3)
+    return [
+        (ring, SLATE),
+        (ticks, LIGHT),
+        (dot(32, 32, 8, 5), RED),
+    ]
 
 
-def aggressive_deployment(d):
-    chevron(d, 4, 6, 14, 8, DARKRED, "down")
-    chevron(d, 4, 22, 14, 8, RED, "down")
-    chevron(d, 32, 14, 14, 8, DARKRED, "down")
-    chevron(d, 32, 30, 14, 8, RED, "down")
-    d.rectangle((2, 54, 62, 60), fill=GRAY)
+def just_die():
+    skull = octagon(6, 16, 58, 52, 14) | octagon(16, 40, 48, 62, 7)
+    holes = octagon(15, 26, 29, 40, 5) | octagon(35, 26, 49, 40, 5) | stroke([(28, 54), (28, 62)], 1, 1) | stroke([(36, 54), (36, 62)], 1, 1)
+    return [
+        (skull & ~holes, LIGHT),
+        (stroke([(16, 20), (32, 4), (48, 20)], 6, 4), RED),
+    ]
+
+
+def self_destruction():
+    body = octagon(2, 16, 50, 62, 16)
+    return [
+        (body, SLATE),
+        (body & poly([(2, 40), (24, 62), (2, 62)]), GRAY),
+        (stroke([(14, 34), (20, 28)], 4, 3), LIGHT),
+        (stroke([(32, 30), (46, 16)], 5, 3), DARK),
+        (dot(51, 12, 10, 7), RED),
+        (dot(51, 12, 4, 3), YELLOW),
+    ]
+
+
+def mutually_assured():
+    disc = octagon(0, 0, 63, 63, 19)
+    blades = poly([(32, 30), (12, 10), (52, 10)]) | poly([(26, 38), (8, 56), (26, 56)]) | poly([(38, 38), (56, 56), (38, 56)])
+    return [
+        (disc, PEACH),
+        (blades, DARK),
+        (dot(32, 32, 9, 6), RED),
+    ]
+
+
+def walking_infested():
+    legs = stroke([(4, 16), (16, 28), (48, 28), (60, 16)], 5, 3) | stroke([(4, 60), (16, 48), (48, 48), (60, 60)], 5, 3)
+    body = octagon(12, 12, 52, 60, 14)
+    return [
+        (legs, DRED),
+        (body, RED),
+        (body & right_half(), DRED),
+        (octagon(18, 24, 30, 36, 4), PEACH),
+        (octagon(34, 24, 46, 36, 4), PEACH),
+    ]
+
+
+def alien_incubation():
+    back = octagon(34, 18, 62, 62, 11)
+    egg = octagon(6, 2, 44, 62, 15)
+    crack = stroke([(16, 24), (26, 34), (18, 42), (30, 54)], 3, 2)
+    return [
+        (back, DPURPLE),
+        (egg, PURPLE),
+        (crack & egg, LAVENDER),
+    ]
+
+
+def barrier():
+    outer = poly([(4, 2), (60, 2), (60, 36), (32, 64), (4, 36)])
+    inner = poly([(14, 12), (50, 12), (50, 32), (32, 50), (14, 32)])
+    return [
+        (outer, NAVY),
+        (inner, BLUE),
+        (inner & right_half(), LIGHT),
+    ]
+
+
+def avenger():
+    head = octagon(4, 14, 60, 62, 18)
+    return [
+        (stroke([(16, 20), (32, 6), (48, 20)], 6, 4), DRED),
+        (head, SLATE),
+        (head & poly([(0, 40), (24, 64), (0, 64)]), GRAY),
+        (stroke([(14, 28), (24, 38)], 4, 3) | stroke([(50, 28), (40, 38)], 4, 3), RED),
+        (stroke([(22, 52), (42, 52)], 3, 2), DARK),
+    ]
+
+
+def inspiration():
+    return [
+        (octagon(10, 10, 54, 54, 5), PEACH),
+        (poly([(32, 0), (64, 32), (32, 64), (0, 32)]), YELLOW),
+        (octagon(20, 20, 44, 44, 8), LIGHT),
+    ]
+
+
+def evasive_maneuvers():
+    return [
+        (stroke([(6, 14), (26, 14)], 5, 3) | stroke([(6, 50), (26, 50)], 5, 3), DRED),
+        (stroke([(6, 32), (30, 32)], 5, 3), PEACH),
+        (stroke(right_chevron(26, 6, 26), 8, 5), RED),
+    ]
+
+
+def transmutation():
+    arrow = stroke([(32, 56), (32, 16)], 8, 6) | stroke([(10, 28), (32, 6), (54, 28)], 7, 5)
+    return [
+        (octagon(10, 46, 54, 64, 7), DARK),
+        (arrow, PURPLE),
+        (arrow & right_half(), DPURPLE),
+    ]
+
+
+def eminent_domain():
+    return [
+        (stroke([(12, 6), (12, 52)], 5, 3), LIGHT),
+        (poly([(16, 1), (50, 1), (38, 13), (50, 25), (16, 25)]), RED),
+        (octagon(14, 32, 63, 63, 10), GRAY2),
+        (octagon(24, 42, 53, 54, 5), DARK),
+    ]
+
+
+def aggressive_deployment():
+    def down(y):
+        return stroke([(10, y), (32, y + 22), (54, y)], 5, 3)
+    return [
+        (stroke([(6, 58), (58, 58)], 5, 3), GRAY2),
+        (down(6), DRED),
+        (down(24), RED),
+    ]
 
 
 for name, fn in [
@@ -150,6 +238,6 @@ for name, fn in [
     ("avenger", avenger), ("inspiration", inspiration), ("evasive-maneuvers", evasive_maneuvers),
     ("transmutation", transmutation), ("eminent-domain", eminent_domain), ("aggressive-deployment", aggressive_deployment),
 ]:
-    icon(name, fn)
+    icon(name, fn())
 
 print("Icons written to", os.path.abspath(OUT))

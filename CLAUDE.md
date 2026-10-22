@@ -29,7 +29,15 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 - `src/roguedustry/MapGen.java`: random maps with a land path and a river to the core
 - `src/roguedustry/RogueUI.java`: menu, map picker, relic and modifier picks, side panel
 - `src/roguedustry/TechTreeDialog.java`: the tech tree window, a copy of the game's research window that reads the run's unlocks
-- `sprites/mutators/`: mutator icons, drawn by `tools/make-icons.py` in the style of the game's campaign map icons: 64x64, flat colors, and every edge straight or at exactly 45°
+- `sprites/mutators/`: mutator icons, drawn by `tools/make-icons.py` (needs Python with Pillow and numpy)
+
+## Icon style
+Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in the game source):
+- 64x64, flat colors, no outlines, transparent background. Use the game's palette (listed at the top of the script).
+- Every edge is straight or exactly 45°. Every corner, inside and out, has a small 45° cut, so shapes look slightly rounded.
+- Shapes are thick bands (about 10px), overlapping and touching each other. Pieces never float apart.
+- Fill most of the frame. Bold shapes, few tiny details. A main color plus a darker partner of the same hue for depth.
+- Compare new icons side by side with the game's icons before committing.
 - `tools/`: run report, icon script and source download script (not part of the mod)
 
 ## Game source

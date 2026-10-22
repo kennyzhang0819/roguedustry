@@ -26,7 +26,7 @@ Enemies get mutators, like in StarCraft II co-op. The terror level goes up by 1 
 - On death: Self Destruction, Mutually Assured Destruction (bosses), Walking Infested (ground units release the first unit of their line), Alien Incubation (the same for air units)
 - Enemy buffs: Barrier (a personal shield on the first hit), Avenger (grows bigger and stronger when allies die), Inspiration (bosses boost nearby enemies), Evasive Maneuvers (teleport forward when hit), Transmutation (rarely turns into the next unit of its line), Eminent Domain (your destroyed structures come back as enemy structures), Aggressive Deployment (an extra group between waves)
 
-Hover a mutator icon to read what it does. The icons are drawn by `tools/make-icons.py` (needs Python with Pillow).
+Hover a mutator icon to read what it does. The icons are drawn by `tools/make-icons.py` (needs Python with Pillow and numpy).
 
 ## Install
 
