@@ -1,14 +1,18 @@
 package roguedustry;
 
 import arc.*;
+import arc.func.*;
 import arc.math.*;
+import arc.scene.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
 import mindustry.content.TechTree.*;
 import mindustry.game.EventType.*;
+import mindustry.game.*;
 import mindustry.gen.*;
 import mindustry.type.*;
+import mindustry.ui.fragments.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.ForceProjector.*;
 import mindustry.world.blocks.production.Drill.*;
@@ -100,7 +104,23 @@ public class RogueRun{
         for(Block block : content.blocks()){
             if(disabled(block)) state.rules.bannedBlocks.add(block);
         }
+        for(var objective : state.rules.objectives){
+            objective.hidden = true;
+            objective.markers = new MapObjectives.ObjectiveMarker[0];
+        }
         if(!headless) ui.hudfrag.blockfrag.rebuild();
+    }
+
+    static void hideHints(){
+        try{
+            var field = HintsFragment.class.getDeclaredField("group");
+            field.setAccessible(true);
+            Element group = (Element)field.get(ui.hints);
+            Boolp shown = group.visibility;
+            group.visibility = () -> !active() && (shown == null || shown.get());
+        }catch(Throwable e){
+            Log.err("[Rogue] Could not hide hints", e);
+        }
     }
 
     public static boolean disabled(Block block){
@@ -302,6 +322,7 @@ public class RogueRun{
         Events.on(ClientLoadEvent.class, e -> {
             //a run's campaign is still live if the game was closed during a run
             if(Profile.inRun()) leave();
+            hideHints();
         });
 
         Events.on(SectorLaunchEvent.class, e -> {
