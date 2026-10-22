@@ -187,7 +187,7 @@ public class RogueUI{
     public void showRunInfo(){
         RogueRun run = run();
         if(!RogueRun.active()) return;
-        infoDialog = new BaseDialog("Run");
+        infoDialog = new BaseDialog("Run Modifiers");
         Table c = infoDialog.cont;
         c.add("Next modifier after wave " + run.nextModifierWave()).color(Color.lightGray).padBottom(8f).row();
 
@@ -228,7 +228,7 @@ public class RogueUI{
         panel.visible(() -> RogueRun.active() && ui.hudfrag.shown());
         panel.left();
         panel.defaults().height(40f).growX();
-        panel.button("Run", Icon.book, Styles.cleart, this::showRunInfo);
+        panel.button("Run Modifiers", Icon.book, Styles.cleart, this::showRunInfo);
 
         Table waves = ui.hudGroup.find("waves");
         if(waves != null){
