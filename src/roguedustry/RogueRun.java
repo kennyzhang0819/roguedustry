@@ -1,7 +1,9 @@
 package roguedustry;
 
 import arc.*;
+import arc.func.*;
 import arc.math.*;
+import arc.scene.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
@@ -12,6 +14,7 @@ import mindustry.game.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
 import mindustry.type.*;
+import mindustry.ui.fragments.*;
 import mindustry.world.*;
 import mindustry.world.blocks.*;
 import mindustry.world.blocks.ConstructBlock.*;
@@ -122,7 +125,38 @@ public class RogueRun{
         for(Block block : content.blocks()){
             if(disabled(block)) state.rules.bannedBlocks.add(block);
         }
+        if(tutorial(state.rules.sector)) skipTutorial();
         if(!headless) ui.hudfrag.blockfrag.rebuild();
+    }
+
+    static boolean tutorial(@Nullable Sector sector){
+        return sector != null && sector.preset != null && Seq.with(SectorPresets.groundZero, SectorPresets.frozenForest, SectorPresets.fungalPass, SectorPresets.frontier).contains(sector.preset);
+    }
+
+    //these maps run world processors that keep the map small and the waves off until the tutorial steps are done
+    static void skipTutorial(){
+        state.rules.objectives.clear();
+        Seq<Building> processors = new Seq<>();
+        for(Building build : Groups.build){
+            if(build.block == Blocks.worldProcessor) processors.add(build);
+        }
+        for(Building build : processors) build.tile.remove();
+        if(state.rules.limitMapArea) Call.setMapArea(0, 0, world.width(), world.height());
+        state.rules.waves = true;
+        state.rules.waveTimer = true;
+        state.rules.waveSending = true;
+    }
+
+    static void hideHints(){
+        try{
+            var field = HintsFragment.class.getDeclaredField("group");
+            field.setAccessible(true);
+            Element group = (Element)field.get(ui.hints);
+            Boolp shown = group.visibility;
+            group.visibility = () -> !active() && (shown == null || shown.get());
+        }catch(Throwable e){
+            Log.err("[Rogue] Could not hide hints", e);
+        }
     }
 
     public static boolean disabled(Block block){
@@ -405,6 +439,7 @@ public class RogueRun{
         Events.on(ClientLoadEvent.class, e -> {
             //a run's campaign is still live if the game was closed during a run
             if(Profile.inRun()) leave();
+            hideHints();
         });
 
         Events.on(SectorLaunchEvent.class, e -> {
