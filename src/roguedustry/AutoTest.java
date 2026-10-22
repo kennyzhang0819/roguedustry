@@ -6,6 +6,7 @@ import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
 import mindustry.game.EventType.*;
+import mindustry.gen.*;
 
 import static mindustry.Vars.*;
 
@@ -30,7 +31,6 @@ public class AutoTest{
             }
         });
 
-        Timer.schedule(() -> Core.app.post(this::logStatus), 5f, 5f);
         later(60f * 3f, () -> {
             Log.info("[Rogue-Test] RESULT timeout");
             Core.app.exit();
@@ -39,8 +39,6 @@ public class AutoTest{
         later(2f, () -> {
             Core.settings.remove(RogueRun.saveKey);
             RogueRun.current = RogueRun.create();
-            Log.info("[Rogue-Test] New run. Unlocked: @", RogueRun.current.unlocked.toSeq().map(c -> c.name));
-            Log.info("[Rogue-Test] Maps: @", RogueRun.current.missionChoices().map(Mission::name));
             RogueRun.current.startMission(new Mission(SectorPresets.groundZero));
         });
 
@@ -49,35 +47,34 @@ public class AutoTest{
 
     void onMissionLoaded(){
         RogueRun run = RogueRun.current;
-        Log.info("[Rogue-Test] Mission loaded. active=@ winWave=@ attack=@ whitelist=@", RogueRun.active(), state.rules.winWave, state.rules.attackMode, state.rules.bannedBlocks.toSeq().map(b -> b.name));
-        Log.info("[Rogue-Test] Researchable: @", Tech.researchable(run).map(n -> n.content.name + Seq.with(Tech.cost(run, n))));
-        shot("01-mission");
-
         RogueUI rui = RoguedustryMod.ui;
-        later(1f, rui::showResearch);
-        later(3f, () -> shot("02-research"));
-        later(4f, () -> {
-            rui.researchDialog.hide();
-            state.rules.defaultTeam.core().items.add(Items.copper, 3000);
-            Tech.researchable(run).each(n -> {
-                if(Tech.canAfford(run, n)) run.research(n);
-            });
-            Log.info("[Rogue-Test] After research, whitelist=@", state.rules.bannedBlocks.toSeq().map(b -> b.name));
+        Log.info("[Rogue-Test] Mission loaded. active=@ slot=@ relicPending=@", RogueRun.active(), run.slot, run.pendingRelic);
+        shot("01-relic");
+
+        later(1f, () -> rui.choose(0));
+        later(2f, () -> state.wave = 3);
+        later(4f, () -> shot("02-modifier"));
+        later(5f, () -> rui.choose(0));
+        later(6f, () -> {
+            run.mutators.set(Mutators.all);
+            logic.runWave();
+        });
+        later(8f, () -> {
+            Seq<Unit> enemies = state.rules.waveTeam.data().units.copy();
+            Log.info("[Rogue-Test] enemies=@ speed=@ longRange=@", enemies.size, enemies.count(u -> u.hasEffect(Mutators.speedEffect)), enemies.count(u -> u.controller() instanceof Mutators.LongRangeAI));
+            shot("03-hud");
+            enemies.each(Unit::kill);
+        });
+        later(11f, () -> Log.info("[Rogue-Test] after kill: enemies=@ (revived)", Groups.unit.count(u -> u.team == state.rules.waveTeam)));
+        later(12f, () -> {
             state.gameOver = true;
             Events.fire(new GameOverEvent(state.rules.defaultTeam));
         });
-        later(10f, () -> shot("03-pick"));
-        later(11f, () -> rui.choose(0));
-        later(13f, () -> shot("04-missions"));
-        later(14f, () -> {
-            Log.info("[Rogue-Test] RESULT cleared=@ modifiers=@ picks=@ next=@", run.missionsCleared, run.modifiers, run.pendingPicks, run.missionChoices().map(Mission::name));
+        later(17f, () -> shot("04-missions"));
+        later(18f, () -> {
+            Log.info("[Rogue-Test] RESULT cleared=@ rewards=@ slotGone=@ next=@", run.missionsCleared, run.rewards.keys().toSeq().map(r -> r.name), run.saveSlot() == null, run.missionChoices().map(Mission::name));
             Core.app.exit();
         });
-    }
-
-    void logStatus(){
-        if(!RogueRun.active()) return;
-        Log.info("[Rogue-Test] wave=@ enemies=@ fps=@", state.wave, state.enemies, Core.graphics.getFramesPerSecond());
     }
 
     void shot(String name){

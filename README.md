@@ -4,11 +4,23 @@ A roguelike run through the Mindustry v8 campaign. The game itself is unchanged:
 
 - Play the Serpulo campaign maps one after another, starting with a locked tech tree.
 - Research with the items you collect. Maps open up the same way they do in the campaign: clear the map before it and research what it asks for.
-- Each cleared map lets you pick 1 of 3 modifiers. Modifiers last for the whole run and some can be picked more than once. Red ones are risky: they help and hurt.
 - Items left in your core when you clear a map are saved for research.
-- Lose a map and the run is over. Your score is how many maps you cleared.
 - After you beat Planetary Launch Terminal, random maps open up and the run goes on as long as you last.
 - Your normal campaign progress is never touched.
+
+### Losing
+
+Lose a single map and the run is over: you start again from Ground Zero. Each map has one save of its own. If you quit, **Continue** picks up from that save, so quitting can't undo a bad situation. The save is deleted when the map ends. Other saves of the same map won't continue the run.
+
+### Rewards
+
+- **Relics** are very strong. You pick 1 of 3 at the start of each map.
+- **Modifiers** are smaller changes, often to one turret or unit. They come in Common, Uncommon and Rare. You pick 1 of 3 at 25%, 50% and 75% of each map (waves survived, or enemy buildings destroyed on attack maps).
+- Both last for the whole run. There are only 3 relics and 3 modifiers so far.
+
+### Terror and mutators
+
+Enemies get mutators, like in StarCraft II co-op. The terror level goes up by 1 for every map you clear. Each terror level adds 2 mutator points, and each mutator costs points, so later maps get more and nastier mutators. Each map shows its mutators before you pick it. There are 4 so far: Speed Freaks, Life Leech, Long Range and Just Die!.
 
 ## Install
 
@@ -22,19 +34,19 @@ Needs Mindustry v8 (build 154 or newer) on desktop.
 
 ## Playing
 
-- The panel under the wave counter shows the map, its goal, and a **Research** button. Use this button, not the game's own tech tree.
-- The run is saved between maps. If you quit in the middle of a map, you can replay it from the start, or load its save from Load Game to carry on.
+- The panel under the wave counter shows the map and its goal, the terror level and mutators, how far you are toward the next modifier, and a **Research** button. Use this button, not the game's own tech tree.
 
 ## Run report
 
-Run `./report.sh` to see every campaign map with what it needs to unlock, the total research cost, and the list of modifiers. It takes a few seconds and doesn't open the game.
+Run `./report.sh` to see every campaign map with what it needs to unlock, the total research cost, the relics and modifiers, and the mutators with their points. It takes a few seconds and doesn't open the game.
 
 ## Screenshot check
 
-Set `ROGUE_AUTOTEST=hud` and start the game. It starts a new run on Ground Zero, opens the research window, pretends the map was cleared, picks a modifier, saves a screenshot of each step to `ROGUE_SHOTS` and quits. Point the game's data folder at an empty folder so your own saves aren't touched (`APPDATA` on Windows, `XDG_DATA_HOME` on Linux). The test deletes any saved run.
+Set `ROGUE_AUTOTEST=hud` and start the game. It starts a new run on Ground Zero, picks a relic and a modifier, sends a wave with every mutator on, pretends the map was cleared, saves a screenshot of each step to `ROGUE_SHOTS` and quits. Point the game's data folder at an empty folder so your own saves aren't touched (`APPDATA` on Windows, `XDG_DATA_HOME` on Linux). The test deletes any saved run.
 
 ## Known limits
 
 - Single player only.
 - Research costs are the campaign's own, which assume items from many maps over many hours. Balance hasn't been tuned yet.
-- An Overdrive Projector's boost and a modifier's speed boost don't add up: the stronger one wins.
+- An Overdrive Projector's boost and a relic or modifier speed boost don't add up: the stronger one wins.
+- Long Range doesn't yet affect enemy units that follow an enemy commander (used on some attack maps).

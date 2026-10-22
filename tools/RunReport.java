@@ -40,9 +40,21 @@ public class RunReport{
         total.each((item, amount) -> System.out.printf("  %-14s %9d%n", item.name, amount));
 
         System.out.println();
-        System.out.println("== Modifiers ==");
-        for(Modifiers.Modifier mod : Modifiers.all){
-            System.out.printf("%-22s max %d %s %s%n", mod.name, mod.max, mod.risky ? "(risky)" : "       ", mod.description);
+        System.out.println("== Relics and modifiers ==");
+        System.out.println("(a relic pick at the start of each map, " + Rewards.modifiersPerMap + " modifier picks spread over each map)");
+        for(Rewards.Reward r : Rewards.all){
+            System.out.printf("%-9s %-18s max %d  %s%n", r.rarity.label, r.name, r.max, r.description);
+        }
+
+        System.out.println();
+        System.out.println("== Enemy mutators ==");
+        for(Mutators.Mutator m : Mutators.all){
+            System.out.printf("%-14s %d points  %s%n", m.name, m.points, m.description);
+        }
+        System.out.println();
+        System.out.println("Terror level = maps cleared. Mutator points per map = terror x 2.");
+        for(int terror = 0; terror <= 6; terror++){
+            System.out.printf("terror %d: %2d points, example roll: %s%n", terror, Mutators.budget(terror), Mutators.roll(terror, terror * 97L).map(m -> m.name));
         }
     }
 }

@@ -7,6 +7,8 @@ import arc.struct.*;
 import arc.util.*;
 import mindustry.content.TechTree.*;
 import mindustry.core.GameState.*;
+import mindustry.game.*;
+import mindustry.game.EventType.*;
 import mindustry.gen.*;
 import mindustry.graphics.*;
 import mindustry.type.*;
@@ -16,8 +18,8 @@ import mindustry.ui.dialogs.*;
 import static mindustry.Vars.*;
 
 public class RogueUI{
-    public @Nullable BaseDialog menuDialog, missionDialog, researchDialog, pickDialog, overDialog;
-    public Seq<Modifiers.Modifier> offered = new Seq<>();
+    public @Nullable BaseDialog menuDialog, missionDialog, researchDialog, rewardDialog, overDialog;
+    public Seq<Rewards.Reward> offered = new Seq<>();
 
     public void init(){
         ui.menufrag.addButton("Roguedustry", Icon.play, this::showMenu);
@@ -29,13 +31,20 @@ public class RogueUI{
             if(run == null || !String.valueOf(run.id).equals(state.rules.tags.get(RogueRun.tag))) return;
             ui.restart.hide(null);
             if(run.over) showRunOver();
-            else if(run.pendingPicks > 0) showPick();
             else showMissions();
         }));
+
+        Events.run(Trigger.update, this::update);
     }
 
     static RogueRun run(){
         return RogueRun.current;
+    }
+
+    void update(){
+        if(!RogueRun.active() || state.gameOver || Core.scene.hasDialog()) return;
+        if(run().pendingRelic) showReward(true);
+        else if(run().pendingModifiers > 0) showReward(false);
     }
 
     public void showMenu(){
@@ -47,8 +56,9 @@ public class RogueUI{
 
         if(run() == null){
             c.add("Play through the campaign maps in order, starting with a locked tech tree.").row();
-            c.add("Research with the items you collect. Each cleared map lets you pick a permanent modifier.").row();
-            c.add("Lose a map and the run is over. After the last campaign map, the run goes on with random maps.").color(Color.lightGray).row();
+            c.add("Pick a relic at the start of each map, and modifiers as the map goes on. They last the whole run.").row();
+            c.add("Enemies get harder mutators as the terror level rises.").row();
+            c.add("Lose a single map and the run is over: you start again from Ground Zero.").color(Pal.remove).row();
             c.add("Your normal campaign is not affected.").color(Color.lightGray).padBottom(10f).row();
             if(RogueRun.best() > 0) c.add("Best run: " + RogueRun.best() + " maps cleared").color(Pal.accent).row();
             c.button("Start a new run", Icon.play, () -> {
@@ -57,76 +67,96 @@ public class RogueUI{
                 showMissions();
             }).size(320f, 64f);
         }else{
-            c.add("Run in progress: " + run().missionsCleared + " maps cleared").color(Pal.accent).row();
-            c.add(modifierSummary()).color(Color.lightGray).wrap().width(600f).padBottom(10f).row();
-            c.button("Continue", Icon.play, () -> {
+            c.add("Run in progress: " + run().missionsCleared + " maps cleared, terror " + run().terror()).color(Pal.accent).row();
+            c.add(rewardSummary()).color(Color.lightGray).wrap().width(600f).padBottom(10f).row();
+            c.button(run().mission != null ? "Continue " + Mission.of(run().mission).name() : "Continue", Icon.play, () -> {
                 menuDialog.hide();
-                if(run().pendingPicks > 0) showPick();
+                if(run().mission != null) resume();
                 else showMissions();
-            }).size(320f, 64f).row();
+            }).size(360f, 64f).row();
             c.button("Abandon this run", Icon.trash, () -> ui.showConfirm("Abandon run", "This run will be lost. Are you sure?", () -> {
-                Core.settings.remove(RogueRun.saveKey);
+                run().lose();
                 RogueRun.current = null;
                 menuDialog.hide();
                 showMenu();
-            })).size(320f, 50f);
+            })).size(360f, 50f);
         }
 
         menuDialog.addCloseButton();
         menuDialog.show();
     }
 
-    String modifierSummary(){
-        if(run().modifiers.isEmpty()) return "No modifiers yet.";
-        StringBuilder out = new StringBuilder("Modifiers: ");
-        boolean first = true;
-        for(var e : run().modifiers){
-            if(!first) out.append(", ");
-            first = false;
-            out.append(e.key.name);
-            if(e.value > 1) out.append(" x").append(e.value);
+    void resume(){
+        Saves.SaveSlot slot = run().saveSlot();
+        if(slot == null){
+            String name = Mission.of(run().mission).name();
+            run().lose();
+            RogueRun.current = null;
+            ui.showInfo("The save for " + name + " is gone, so the run is over.");
+            return;
         }
-        return out.toString();
+        ui.loadAnd(() -> {
+            try{
+                net.reset();
+                slot.load();
+                state.rules.editor = false;
+                state.rules.sector = null;
+                state.set(State.playing);
+            }catch(Throwable e){
+                Log.err(e);
+                logic.reset();
+                ui.showException("Could not load the save for this map", e);
+            }
+        });
+    }
+
+    String rewardSummary(){
+        if(run().rewards.isEmpty()) return "No relics or modifiers yet.";
+        Seq<String> parts = new Seq<>();
+        for(var e : run().rewards){
+            parts.add(e.key.name + (e.value > 1 ? " x" + e.value : ""));
+        }
+        return parts.toString(", ");
+    }
+
+    static String mutatorText(Seq<Mutators.Mutator> list){
+        return list.isEmpty() ? "no mutators" : list.map(m -> m.name).toString(", ");
     }
 
     public void showMissions(){
         RogueRun run = run();
-        missionDialog = new BaseDialog("Choose your next map");
+        boolean justCleared = state.isGame() && state.gameOver;
+        missionDialog = new BaseDialog(justCleared ? "Map cleared!" : "Choose your next map");
         Table c = missionDialog.cont;
 
-        c.add("Maps cleared: " + run.missionsCleared).color(Pal.accent).padBottom(8f).row();
+        c.add("Maps cleared: " + run.missionsCleared + "   Terror level: " + run.terror()).color(Pal.accent).padBottom(8f).row();
 
-        if(run.mission != null){
-            Mission m = Mission.of(run.mission);
-            c.add("You left " + m.name() + " before finishing it. Replay it from the start,").row();
-            c.add("or load its save from Load Game to continue where you were.").color(Color.lightGray).padBottom(8f).row();
-            c.button("Replay " + m.name(), Icon.play, () -> start(m)).size(360f, 64f).row();
-        }else{
-            c.pane(p -> {
-                p.defaults().pad(6f);
-                int i = 0;
-                for(Mission m : run.missionChoices()){
-                    p.table(Styles.black6, card -> {
-                        card.margin(10f).left().defaults().left();
-                        card.add(m.name()).color(Pal.accent).row();
-                        card.add(m.goal()).row();
-                        card.add("Threat " + Strings.autoFixed(m.threat(), 1)).color(Color.lightGray).row();
-                        card.button("Play", Icon.play, () -> start(m)).size(180f, 50f).padTop(6f);
-                    }).width(300f);
-                    if(++i % 3 == 0) p.row();
-                }
-            }).maxHeight(360f).row();
-
-            Seq<TechNode> locked = Tech.lockedSectors(run);
-            if(locked.any()){
-                c.add("Still locked").color(Color.lightGray).padTop(12f).row();
-                c.pane(p -> {
-                    p.left().defaults().left().pad(2f);
-                    for(TechNode node : locked){
-                        p.add("[lightgray]" + node.content.localizedName + ": []needs " + Tech.missingText(run, node)).wrap().width(760f).row();
-                    }
-                }).maxHeight(180f).width(780f).row();
+        c.pane(p -> {
+            p.defaults().pad(6f);
+            int i = 0;
+            for(Mission m : run.missionChoices()){
+                Seq<Mutators.Mutator> mutators = run.mutatorsFor(m);
+                p.table(Styles.black6, card -> {
+                    card.margin(10f).left().defaults().left();
+                    card.add(m.name()).color(Pal.accent).row();
+                    card.add(m.goal()).row();
+                    card.add("Threat " + Strings.autoFixed(m.threat(), 1)).color(Color.lightGray).row();
+                    card.add("[scarlet]Mutators:[] " + mutatorText(mutators)).wrap().width(260f).row();
+                    card.button("Play", Icon.play, () -> start(m)).size(180f, 50f).padTop(6f);
+                }).width(300f).top();
+                if(++i % 3 == 0) p.row();
             }
+        }).maxHeight(380f).row();
+
+        Seq<TechNode> locked = Tech.lockedSectors(run);
+        if(locked.any()){
+            c.add("Still locked").color(Color.lightGray).padTop(12f).row();
+            c.pane(p -> {
+                p.left().defaults().left().pad(2f);
+                for(TechNode node : locked){
+                    p.add("[lightgray]" + node.content.localizedName + ": []needs " + Tech.missingText(run, node)).wrap().width(760f).row();
+                }
+            }).maxHeight(180f).width(780f).row();
         }
 
         missionDialog.buttons.defaults().size(220f, 60f);
@@ -144,7 +174,6 @@ public class RogueUI{
     }
 
     public void showResearch(){
-        RogueRun run = run();
         researchDialog = new BaseDialog("Research");
         Table list = new Table();
         int[] version = {-1};
@@ -157,15 +186,18 @@ public class RogueUI{
         researchDialog.cont.add("Items you saved from cleared maps are used first, then items in your core.").color(Color.lightGray).row();
         researchDialog.cont.pane(list).grow();
         researchDialog.addCloseButton();
+        pauseWhileShown(researchDialog);
+        researchDialog.show();
+    }
 
+    static void pauseWhileShown(BaseDialog dialog){
         boolean pause = state.isGame() && !state.gameOver;
-        researchDialog.shown(() -> {
+        dialog.shown(() -> {
             if(pause) state.set(State.paused);
         });
-        researchDialog.hidden(() -> {
+        dialog.hidden(() -> {
             if(pause && state.isGame() && !state.gameOver) state.set(State.playing);
         });
-        researchDialog.show();
     }
 
     void rebuildResearch(Table table){
@@ -209,49 +241,57 @@ public class RogueUI{
         }
     }
 
-    public void showPick(){
+    public void showReward(boolean relic){
         RogueRun run = run();
-        offered = run.modifierOffer();
-        pickDialog = new BaseDialog("Map cleared!");
-        pickDialog.cont.add("Pick a modifier. It lasts for the rest of the run.").color(Pal.accent).padBottom(12f).row();
-        pickDialog.cont.table(row -> {
+        offered = relic ? run.relicOffer() : run.modifierOffer();
+        if(offered.isEmpty()){
+            run.skipPicks();
+            return;
+        }
+
+        rewardDialog = new BaseDialog(relic ? "Choose a relic" : "Choose a modifier");
+        Table c = rewardDialog.cont;
+        if(relic){
+            Mission m = Mission.of(run.mission);
+            c.add(m.name() + ": " + m.goal()).color(Pal.accent).row();
+            c.add("[scarlet]Terror " + run.terror() + "[]: " + mutatorText(run.mutators)).padBottom(4f).row();
+            for(Mutators.Mutator mutator : run.mutators){
+                c.add("[lightgray]" + mutator.name + ": " + mutator.description).row();
+            }
+            c.add("Pick one relic. It lasts for the rest of the run.").padTop(12f).padBottom(8f).row();
+        }else{
+            c.add("Pick one modifier. It lasts for the rest of the run.").padBottom(8f).row();
+        }
+
+        c.table(row -> {
             for(int i = 0; i < offered.size; i++){
-                Modifiers.Modifier mod = offered.get(i);
+                Rewards.Reward reward = offered.get(i);
                 int index = i;
                 row.button(card -> {
                     card.top().margin(12f);
-                    card.add(mod.name).color(mod.risky ? Pal.remove : Pal.accent).padBottom(6f).row();
-                    if(run.stacks(mod) > 0) card.add("You have " + run.stacks(mod) + " of " + mod.max).color(Color.lightGray).padBottom(6f).row();
-                    card.add(mod.description).wrap().width(220f).row();
-                }, Styles.defaultb, () -> choose(index)).size(260f, 220f).pad(8f);
+                    card.add(reward.rarity.label).color(reward.rarity.color).padBottom(4f).row();
+                    card.add(reward.name).color(Pal.accent).padBottom(8f).row();
+                    card.add(reward.description).wrap().width(220f).row();
+                    if(run.stacks(reward) > 0) card.add("You have " + run.stacks(reward) + " of " + reward.max).color(Color.lightGray).padTop(8f).row();
+                }, Styles.defaultb, () -> choose(index)).size(260f, 230f).pad(8f);
             }
         });
-        if(offered.isEmpty()){
-            pickDialog.cont.add("You have every modifier already.").row();
-            pickDialog.buttons.button("Continue", () -> {
-                run.pendingPicks = 0;
-                run.save();
-                pickDialog.hide();
-                showMissions();
-            }).size(220f, 60f);
-        }
-        pickDialog.show();
+        pauseWhileShown(rewardDialog);
+        rewardDialog.show();
     }
 
     public void choose(int index){
-        if(pickDialog == null || index >= offered.size) return;
-        Modifiers.Modifier mod = offered.get(index);
+        if(rewardDialog == null || index >= offered.size) return;
+        Rewards.Reward reward = offered.get(index);
         //a second click during the close animation must not pick again
         offered = new Seq<>();
-        run().pickModifier(mod);
-        pickDialog.hide();
-        if(run().pendingPicks > 0) showPick();
-        else showMissions();
+        run().take(reward);
+        rewardDialog.hide();
     }
 
     void showRunOver(){
         overDialog = new BaseDialog("Run over");
-        overDialog.cont.add("Your core was destroyed.").row();
+        overDialog.cont.add("Your core was destroyed. The run is over.").row();
         overDialog.cont.add("Maps cleared: " + run().missionsCleared).color(Pal.accent).row();
         overDialog.cont.add("Best run: " + RogueRun.best()).color(Color.lightGray).row();
         overDialog.buttons.button("Main menu", Icon.exit, () -> {
@@ -274,7 +314,16 @@ public class RogueUI{
             Mission m = Mission.of(run().mission);
             return "[accent]" + m.name() + "[]  " + m.goal();
         }).row();
-        panel.label(() -> RogueRun.active() ? "[lightgray]Maps cleared: " + run().missionsCleared + "   Modifiers: " + run().modifiers.size : "").row();
+        panel.label(() -> RogueRun.active() ? "[scarlet]Terror " + run().terror() + "[]: " + mutatorText(run().mutators) : "").row();
+        panel.label(() -> {
+            if(!RogueRun.active()) return "";
+            RogueRun run = run();
+            int relics = 0;
+            for(var e : run.rewards) if(e.key.isRelic()) relics++;
+            String next = run.mapPicks < Rewards.modifiersPerMap ? "   Progress " + Math.round(run.missionProgress() * 100) + "%, next modifier at " + Math.round((run.mapPicks + 1f) / (Rewards.modifiersPerMap + 1f) * 100) + "%" : "";
+            return "[lightgray]Relics: " + relics + "   Modifiers: " + (run.rewards.size - relics) + next;
+        }).row();
+
         float[] timer = {0f};
         panel.button("Research", Icon.tree, Styles.cleart, this::showResearch).height(36f).growX()
             .update(b -> {

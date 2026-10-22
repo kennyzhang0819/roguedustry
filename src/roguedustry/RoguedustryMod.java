@@ -9,6 +9,7 @@ public class RoguedustryMod extends Mod{
 
     public RoguedustryMod(){
         RogueRun.registerEvents();
+        Mutators.registerEvents();
 
         Events.on(ClientLoadEvent.class, e -> {
             ui = new RogueUI();
@@ -18,5 +19,10 @@ public class RoguedustryMod extends Mod{
                 new AutoTest().begin();
             }
         });
+    }
+
+    @Override
+    public void loadContent(){
+        Mutators.load();
     }
 }

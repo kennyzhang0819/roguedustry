@@ -1,7 +1,7 @@
 package roguedustry;
 
-import arc.math.*;
 import arc.struct.*;
+import arc.util.*;
 import mindustry.content.*;
 import mindustry.content.TechTree.*;
 import mindustry.ctype.*;
@@ -66,13 +66,7 @@ public class Tech{
     }
 
     public static ItemStack[] cost(RogueRun run, TechNode node){
-        float mult = Mathf.pow(0.75f, run.stacks(Modifiers.scholar));
-        Seq<ItemStack> out = new Seq<>();
-        for(ItemStack stack : node.requirements){
-            int amount = Math.max(1, Mathf.round(stack.amount * mult));
-            if(stack.amount > 0) out.add(new ItemStack(stack.item, amount));
-        }
-        return out.toArray(ItemStack.class);
+        return Structs.filter(ItemStack.class, node.requirements, s -> s.amount > 0);
     }
 
     public static int paid(RogueRun run, TechNode node, Item item){
