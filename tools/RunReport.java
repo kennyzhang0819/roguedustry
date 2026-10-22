@@ -33,7 +33,7 @@ public class RunReport{
 
         System.out.println();
         System.out.println("== Relics and modifiers ==");
-        System.out.println("(a relic pick at the start of each map, " + Rewards.modifiersPerMap + " modifier picks spread over each map)");
+        System.out.println("(a relic pick at the start of each map, a modifier pick every " + Rewards.wavesPerModifier + " waves cleared)");
         for(Rewards.Reward r : Rewards.all){
             System.out.printf("%-9s %-18s max %d  %s%n", r.rarity.label, r.name, r.max, r.description);
         }
@@ -41,12 +41,9 @@ public class RunReport{
         System.out.println();
         System.out.println("== Enemy mutators ==");
         for(Mutators.Mutator m : Mutators.all){
-            System.out.printf("%-14s %d points  %s%n", m.name, m.points, m.description);
+            System.out.printf("%-28s %s%n", m.name, m.description);
         }
         System.out.println();
-        System.out.println("Terror level = maps cleared. Mutator points per map = terror x 2.");
-        for(int terror = 0; terror <= 6; terror++){
-            System.out.printf("terror %d: %2d points, example roll: %s%n", terror, Mutators.budget(terror), Mutators.roll(terror, terror * 97L).map(m -> m.name));
-        }
+        System.out.println("At the start of each map the player gives the enemies 1 of 3 mutators they don't have yet. They keep it for the whole run.");
     }
 }

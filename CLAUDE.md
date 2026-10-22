@@ -1,6 +1,6 @@
 # Roguedustry
 
-A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks (processors, memory, displays and so on) are left out of the run. The player picks a relic at the start of each map and modifiers during it; both last the whole run. Enemies get StarCraft II co-op style mutators, paid for with points from a terror level that rises every map. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
+A roguelike mod for Mindustry v8 (build 160.7). A run plays the Serpulo campaign maps in order with a locked tech tree. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks (processors, memory, displays and so on) are left out of the run. At the start of each map the player picks a mutator for the enemies (StarCraft II co-op style) and a relic for themselves, and gets a modifier pick every 10 waves cleared. All of them last the whole run. Losing one map ends the run for good. After Planetary Launch Terminal, random maps keep the run going. The base game stays unchanged; everything is built on top.
 
 Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Mutators should be very punishing.
 
@@ -25,9 +25,9 @@ Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/
 - `src/roguedustry/Tech.java`: which tech tree nodes and campaign maps are unlocked, read from the game's own tech tree
 - `src/roguedustry/Mission.java`: one map of the run (a campaign map or a random one) and its rules
 - `src/roguedustry/Rewards.java`: relics and modifiers, their rarity, how many picks per map
-- `src/roguedustry/Mutators.java`: enemy mutators, terror level and points
+- `src/roguedustry/Mutators.java`: enemy mutators and the mutator offer
 - `src/roguedustry/MapGen.java`: random maps with a land path and a river to the core
-- `src/roguedustry/RogueUI.java`: menu, map picker, relic and modifier picks, side panel
+- `src/roguedustry/RogueUI.java`: menu, map picker, mutator, relic and modifier picks, Run window and HUD buttons
 - `src/roguedustry/TechTreeDialog.java`: the tech tree window, a copy of the game's research window that reads the run's unlocks
 - `sprites/mutators/`: mutator icons, drawn by `tools/make-icons.py` (needs Python with Pillow and numpy)
 

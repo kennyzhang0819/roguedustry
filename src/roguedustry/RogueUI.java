@@ -18,9 +18,9 @@ import mindustry.ui.dialogs.*;
 import static mindustry.Vars.*;
 
 public class RogueUI{
-    public @Nullable BaseDialog menuDialog, missionDialog, rewardDialog, overDialog;
+    public @Nullable BaseDialog menuDialog, missionDialog, rewardDialog, overDialog, infoDialog;
     public @Nullable TechTreeDialog researchDialog;
-    public Seq<Rewards.Reward> offered = new Seq<>();
+    public Seq<Runnable> offered = new Seq<>();
 
     public void init(){
         ui.menufrag.addButton("Roguedustry", Icon.play, this::showMenu);
@@ -44,7 +44,8 @@ public class RogueUI{
 
     void update(){
         if(!RogueRun.active() || state.gameOver || Core.scene.hasDialog()) return;
-        if(run().pendingRelic) showReward(true);
+        if(run().pendingCurse) showCurse();
+        else if(run().pendingRelic) showReward(true);
         else if(run().pendingModifiers > 0) showReward(false);
     }
 
@@ -58,7 +59,7 @@ public class RogueUI{
         if(run() == null){
             c.add("Play through the campaign maps in order, starting with a locked tech tree.").row();
             c.add("Pick a relic at the start of each map, and modifiers as the map goes on. They last the whole run.").row();
-            c.add("Enemies get harder mutators as the terror level rises.").row();
+            c.add("At the start of each map you also pick a mutator for the enemies. They keep it for the whole run.").row();
             c.add("Lose a single map and the run is over: you start again from Ground Zero.").color(Pal.remove).row();
             c.add("Your normal campaign is not affected.").color(Color.lightGray).padBottom(10f).row();
             if(RogueRun.best() > 0) c.add("Best run: " + RogueRun.best() + " maps cleared").color(Pal.accent).row();
@@ -68,7 +69,7 @@ public class RogueUI{
                 showMissions();
             }).size(320f, 64f);
         }else{
-            c.add("Run in progress: " + run().missionsCleared + " maps cleared, terror " + run().terror()).color(Pal.accent).row();
+            c.add("Run in progress: " + run().missionsCleared + " maps cleared, " + run().mutators.size + " enemy mutators").color(Pal.accent).row();
             c.add(rewardSummary()).color(Color.lightGray).wrap().width(600f).padBottom(10f).row();
             c.button(run().mission != null ? "Continue " + Mission.of(run().mission).name() : "Continue", Icon.play, () -> {
                 menuDialog.hide();
@@ -120,10 +121,6 @@ public class RogueUI{
         return parts.toString(", ");
     }
 
-    static String mutatorText(Seq<Mutators.Mutator> list){
-        return list.isEmpty() ? "no mutators" : list.map(m -> m.name).toString(", ");
-    }
-
     static void mutatorIcons(Table table, Seq<Mutators.Mutator> list, float size, int perRow){
         table.clear();
         table.left();
@@ -144,21 +141,21 @@ public class RogueUI{
         missionDialog = new BaseDialog(justCleared ? "Map cleared!" : "Choose your next map");
         Table c = missionDialog.cont;
 
-        c.add("Maps cleared: " + run.missionsCleared + "   Terror level: " + run.terror()).color(Pal.accent).padBottom(8f).row();
+        c.add("Maps cleared: " + run.missionsCleared).color(Pal.accent).row();
+        c.table(line -> {
+            line.add("[scarlet]Enemy mutators: ");
+            line.table(icons -> mutatorIcons(icons, run.mutators, 32f, 10));
+        }).padBottom(8f).row();
 
         c.pane(p -> {
             p.defaults().pad(6f);
             int i = 0;
             for(Mission m : run.missionChoices()){
-                Seq<Mutators.Mutator> mutators = run.mutatorsFor(m);
                 p.table(Styles.black6, card -> {
                     card.margin(10f).left().defaults().left();
                     card.add(m.name()).color(Pal.accent).row();
                     card.add(m.goal()).row();
                     card.add("Threat " + Strings.autoFixed(m.threat(), 1)).color(Color.lightGray).row();
-                    card.add("[scarlet]Mutators:").padTop(4f).row();
-                    card.table(icons -> mutatorIcons(icons, mutators, 36f, 6)).left().row();
-                    if(mutators.any()) card.add("[lightgray]" + mutatorText(mutators)).wrap().width(260f).row();
                     card.button("Play", Icon.play, () -> start(m)).size(180f, 50f).padTop(6f);
                 }).width(300f).top();
                 if(++i % 3 == 0) p.row();
@@ -206,37 +203,58 @@ public class RogueUI{
         });
     }
 
+    public void showCurse(){
+        RogueRun run = run();
+        Seq<Mutators.Mutator> curses = run.curseOffer();
+        if(curses.isEmpty()){
+            run.curse(null);
+            return;
+        }
+        offered = curses.map(m -> () -> run.curse(m));
+
+        rewardDialog = new BaseDialog("Curse the enemies");
+        Table c = rewardDialog.cont;
+        Mission m = Mission.of(run.mission);
+        c.add(m.name() + ": " + m.goal()).color(Pal.accent).row();
+        c.table(line -> {
+            line.add("[scarlet]Enemy mutators so far: ");
+            line.table(icons -> mutatorIcons(icons, run.mutators, 32f, 10));
+        }).padBottom(4f).row();
+        c.add("Pick one mutator for the enemies. They keep it for the rest of the run.").padTop(8f).padBottom(8f).row();
+
+        c.table(row -> {
+            for(int i = 0; i < curses.size; i++){
+                Mutators.Mutator mutator = curses.get(i);
+                int index = i;
+                row.button(card -> {
+                    card.top().margin(12f);
+                    card.image(mutator.icon()).size(64f).padBottom(6f).row();
+                    card.add(mutator.name).color(Pal.remove).wrap().width(220f).padBottom(8f).get().setAlignment(Align.center);
+                    card.row();
+                    card.add(mutator.description).wrap().width(220f).row();
+                }, Styles.defaultb, () -> choose(index)).size(260f, 260f).pad(8f);
+            }
+        });
+        pauseWhileShown(rewardDialog);
+        rewardDialog.show();
+    }
+
     public void showReward(boolean relic){
         RogueRun run = run();
-        offered = relic ? run.relicOffer() : run.modifierOffer();
-        if(offered.isEmpty()){
+        Seq<Rewards.Reward> rewards = relic ? run.relicOffer() : run.modifierOffer();
+        if(rewards.isEmpty()){
             run.skipPicks();
             return;
         }
+        offered = rewards.map(r -> () -> run.take(r));
 
         rewardDialog = new BaseDialog(relic ? "Choose a relic" : "Choose a modifier");
         Table c = rewardDialog.cont;
-        if(relic){
-            Mission m = Mission.of(run.mission);
-            c.add(m.name() + ": " + m.goal()).color(Pal.accent).row();
-            c.add("[scarlet]Terror " + run.terror() + (run.mutators.isEmpty() ? "[]: no mutators" : "")).padBottom(4f).row();
-            if(run.mutators.any()) c.pane(list -> {
-                for(Mutators.Mutator mutator : run.mutators){
-                    list.table(line -> {
-                        line.left();
-                        line.image(mutator.icon()).size(40f).padRight(8f);
-                        line.add("[scarlet]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(640f).left();
-                    }).left().pad(2f).row();
-                }
-            }).maxHeight(Math.min(260f, Core.graphics.getHeight() / Scl.scl() * 0.35f)).row();
-            c.add("Pick one relic. It lasts for the rest of the run.").padTop(12f).padBottom(8f).row();
-        }else{
-            c.add("Pick one modifier. It lasts for the rest of the run.").padBottom(8f).row();
-        }
+        c.add(relic ? "Pick one relic. It lasts for the rest of the run." : "Pick one modifier. It lasts for the rest of the run.").padBottom(8f).row();
 
         c.table(row -> {
-            for(int i = 0; i < offered.size; i++){
-                Rewards.Reward reward = offered.get(i);
+            for(int i = 0; i < rewards.size; i++){
+                Rewards.Reward reward = rewards.get(i);
                 int index = i;
                 row.button(card -> {
                     card.top().margin(12f);
@@ -253,10 +271,10 @@ public class RogueUI{
 
     public void choose(int index){
         if(rewardDialog == null || index >= offered.size) return;
-        Rewards.Reward reward = offered.get(index);
+        Runnable pick = offered.get(index);
         //a second click during the close animation must not pick again
         offered = new Seq<>();
-        run().take(reward);
+        pick.run();
         rewardDialog.hide();
     }
 
@@ -273,42 +291,54 @@ public class RogueUI{
         overDialog.show();
     }
 
+    public void showRunInfo(){
+        RogueRun run = run();
+        if(!RogueRun.active() || run.mission == null) return;
+        infoDialog = new BaseDialog("Run");
+        Table c = infoDialog.cont;
+        Mission m = Mission.of(run.mission);
+        c.add(m.name() + ": " + m.goal()).color(Pal.accent).row();
+        c.add("Maps cleared: " + run.missionsCleared + "   Next modifier after wave " + (run.mapPicks + 1) * Rewards.wavesPerModifier).color(Color.lightGray).padBottom(8f).row();
+
+        c.pane(list -> {
+            list.left().defaults().left().pad(2f);
+            list.add("[scarlet]Enemy mutators").padTop(6f).row();
+            if(run.mutators.isEmpty()) list.add("[lightgray]none").row();
+            for(Mutators.Mutator mutator : run.mutators){
+                list.table(line -> {
+                    line.left();
+                    line.image(mutator.icon()).size(40f).padRight(8f);
+                    line.add("[scarlet]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(640f).left();
+                }).row();
+            }
+            rewardList(list, run, "Relics", true);
+            rewardList(list, run, "Modifiers", false);
+        }).maxHeight(Core.graphics.getHeight() / Scl.scl() * 0.65f).width(720f);
+
+        infoDialog.addCloseButton();
+        pauseWhileShown(infoDialog);
+        infoDialog.show();
+    }
+
+    static void rewardList(Table list, RogueRun run, String title, boolean relics){
+        list.add("[accent]" + title).padTop(10f).row();
+        boolean any = false;
+        for(var e : run.rewards){
+            if(e.key.isRelic() != relics) continue;
+            any = true;
+            list.add("[#" + e.key.rarity.color + "]" + e.key.name + (e.value > 1 ? " x" + e.value : "") + "[]: [lightgray]" + e.key.description).wrap().width(700f).row();
+        }
+        if(!any) list.add("[lightgray]none").row();
+    }
+
     void buildHud(){
-        Table panel = new Table(Styles.black6);
+        Table panel = new Table();
         panel.name = "rogue-hud";
         panel.visible(() -> RogueRun.active() && ui.hudfrag.shown());
-        panel.left().margin(6f);
-        panel.defaults().pad(2f).left();
-
-        panel.label(() -> {
-            if(!RogueRun.active() || run().mission == null) return "";
-            Mission m = Mission.of(run().mission);
-            return "[accent]" + m.name() + "[]  " + m.goal();
-        }).row();
-        panel.table(line -> {
-            line.left();
-            line.label(() -> RogueRun.active() ? "[scarlet]Terror " + run().terror() + "[] " : "");
-            Table icons = new Table();
-            String[] shown = {null};
-            icons.update(() -> {
-                if(!RogueRun.active()) return;
-                String now = run().mutators.toString();
-                if(now.equals(shown[0])) return;
-                shown[0] = now;
-                mutatorIcons(icons, run().mutators, 28f, 8);
-            });
-            line.add(icons).left();
-        }).left().row();
-        panel.label(() -> {
-            if(!RogueRun.active()) return "";
-            RogueRun run = run();
-            int relics = 0;
-            for(var e : run.rewards) if(e.key.isRelic()) relics++;
-            String next = run.mapPicks < Rewards.modifiersPerMap ? "   Progress " + Math.round(run.missionProgress() * 100) + "%, next modifier at " + Math.round((run.mapPicks + 1f) / (Rewards.modifiersPerMap + 1f) * 100) + "%" : "";
-            return "[lightgray]Relics: " + relics + "   Modifiers: " + (run.rewards.size - relics) + next;
-        }).row();
-
-        panel.button("Tech tree", Icon.tree, Styles.cleart, this::showResearch).height(36f).growX();
+        panel.left();
+        panel.defaults().height(40f).growX();
+        panel.button("Run", Icon.book, Styles.cleart, this::showRunInfo);
+        panel.button("Tech tree", Icon.tree, Styles.cleart, this::showResearch);
 
         Table waves = ui.hudGroup.find("waves");
         if(waves != null){

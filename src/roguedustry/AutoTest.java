@@ -42,7 +42,6 @@ public class AutoTest{
             Core.settings.remove(RogueRun.saveKey);
             RogueRun.current = RogueRun.create();
             RogueRun.current.startMission(new Mission(SectorPresets.groundZero));
-            RogueRun.current.mutators.set(Mutators.all);
         });
 
         Events.run(Trigger.newGame, () -> later(3f, this::onMissionLoaded));
@@ -51,14 +50,20 @@ public class AutoTest{
     void onMissionLoaded(){
         RogueRun run = RogueRun.current;
         RogueUI rui = RoguedustryMod.ui;
-        Log.info("[Rogue-Test] Mission loaded. active=@ slot=@ relicPending=@", RogueRun.active(), run.slot, run.pendingRelic);
-        shot("01-relic");
+        Log.info("[Rogue-Test] Mission loaded. active=@ slot=@ cursePending=@ relicPending=@", RogueRun.active(), run.slot, run.pendingCurse, run.pendingRelic);
+        shot("00-curse");
 
-        later(1f, () -> {
+        later(0.7f, () -> rui.choose(0));
+        later(1.4f, () -> {
+            Log.info("[Rogue-Test] curses=@", run.mutators.map(m -> m.name));
+            run.mutators.set(Mutators.all);
+            shot("01-relic");
+        });
+        later(1.8f, () -> {
             rui.choose(0);
             Core.settings.remove(TechTreeDialog.infoKey);
         });
-        later(2f, rui::showResearch);
+        later(2.4f, rui::showResearch);
         later(4f, () -> shot("02-tech-info"));
         later(5f, () -> {
             for(var e : Core.scene.root.getChildren().copy()){
@@ -77,7 +82,10 @@ public class AutoTest{
         });
         later(8f, () -> shot("03-tech"));
         later(8.5f, () -> rui.researchDialog.hide());
-        later(9.5f, () -> state.wave = 3);
+        later(9.5f, () -> {
+            state.rules.winWave = 100;
+            state.wave = 10;
+        });
         later(10f, () -> shot("04-modifier"));
         later(11f, () -> rui.choose(0));
         later(12f, () -> logic.runWave());
@@ -109,6 +117,9 @@ public class AutoTest{
             Mutators.deployTimer = 1e9f;
         });
         later(19f, () -> Log.info("[Rogue-Test] after deployment: enemies=@", Groups.unit.count(u -> u.team == state.rules.waveTeam)));
+        later(19.2f, rui::showRunInfo);
+        later(19.6f, () -> shot("05c-run"));
+        later(19.9f, () -> rui.infoDialog.hide());
         later(20f, () -> {
             state.gameOver = true;
             Events.fire(new GameOverEvent(state.rules.defaultTeam));

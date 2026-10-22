@@ -44,7 +44,7 @@ public class Rewards{
         }
     }
 
-    public static final int modifiersPerMap = 3;
+    public static final int wavesPerModifier = 10;
 
     public static final Reward
     coreLink = new Reward("core-link", "Core Link", Rarity.relic, 1, "All drills send what they mine straight into your core."),

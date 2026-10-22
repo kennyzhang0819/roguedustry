@@ -33,8 +33,8 @@ public class RogueRun{
     public final ObjectIntMap<Rewards.Reward> rewards = new ObjectIntMap<>();
     public final Seq<Mutators.Mutator> mutators = new Seq<>();
     public @Nullable String mission, slot;
-    public boolean over, pendingRelic;
-    public int pendingModifiers, mapPicks, enemyStart, picksTaken;
+    public boolean over, pendingCurse, pendingRelic;
+    public int pendingModifiers, mapPicks, picksTaken;
 
     public int techVersion;
     float effectTimer, warnTimer, cleanupTimer;
@@ -61,14 +61,6 @@ public class RogueRun{
         return mission == null ? null : Mission.of(mission).preset;
     }
 
-    public int terror(){
-        return Mutators.terror(missionsCleared);
-    }
-
-    public Seq<Mutators.Mutator> mutatorsFor(Mission m){
-        return Mutators.roll(terror(), id * 31L + m.key().hashCode() * 7919L + missionsCleared);
-    }
-
     public Seq<Mission> missionChoices(){
         Seq<Mission> out = Tech.playableSectors(this).map(Mission::new);
         if(Tech.campaignBeaten(this)){
@@ -82,10 +74,9 @@ public class RogueRun{
 
     public void startMission(Mission m){
         mission = m.key();
-        mutators.set(mutatorsFor(m));
+        pendingCurse = curseOffer().any();
         pendingRelic = Rewards.rollRelics(rewards, new Rand()).any();
-        pendingModifiers = mapPicks = 0;
-        enemyStart = 0;
+        mapPicks = 0;
         slot = null;
         save();
 
@@ -101,13 +92,12 @@ public class RogueRun{
         Mission m = Mission.of(mission);
         //playMap() swaps in the wave list of the previous world, so generated maps set theirs again here
         if(m.preset == null) state.rules.spawns = m.rules().spawns;
-        enemyStart = state.rules.waveTeam.data().buildings.size;
         if(!headless){
             //the game's "save on start" option makes a copy of the map's start, which would let a lost map be replayed
             if(control.saves.getCurrent() != null) control.saves.getCurrent().delete();
             slot = control.saves.addSave("Roguedustry - " + m.name()).file.name();
         }
-        Log.info("[Rogue] Mission '@' started. Terror @, mutators: @", mission, terror(), mutators.map(x -> x.name));
+        Log.info("[Rogue] Mission '@' started. Mutators: @", mission, mutators.map(x -> x.name));
         onMissionLoaded();
     }
 
@@ -135,14 +125,13 @@ public class RogueRun{
         boolean won = winner == state.rules.defaultTeam;
         deleteSlot();
         if(won){
+            countPicks();
             Mission m = Mission.of(mission);
             if(m.preset != null) cleared.add(m.preset);
             else endless++;
             missionsCleared++;
             mission = null;
-            mutators.clear();
-            pendingRelic = false;
-            pendingModifiers = 0;
+            pendingCurse = pendingRelic = false;
             Tech.autoUnlock(this);
             save();
             Log.info("[Rogue] Mission cleared. @ cleared so far", missionsCleared);
@@ -158,6 +147,20 @@ public class RogueRun{
         Core.settings.put(bestKey, Math.max(best(), missionsCleared));
         Core.settings.remove(saveKey);
         Log.info("[Rogue] Run over after @ missions", missionsCleared);
+    }
+
+    public Seq<Mutators.Mutator> curseOffer(){
+        return Mutators.offer(mutators, new Rand(id * 4421L + missionsCleared * 104729L));
+    }
+
+    public void curse(@Nullable Mutators.Mutator mutator){
+        if(!pendingCurse) return;
+        pendingCurse = false;
+        if(mutator != null && !mutators.contains(mutator)){
+            mutators.add(mutator);
+            Log.info("[Rogue] Enemies got '@'", mutator.name);
+        }
+        save();
     }
 
     public Seq<Rewards.Reward> relicOffer(){
@@ -217,13 +220,6 @@ public class RogueRun{
         }
     }
 
-    public float missionProgress(){
-        if(state.rules.attackMode){
-            return enemyStart <= 0 ? 0f : 1f - state.rules.waveTeam.data().buildings.size / (float)enemyStart;
-        }
-        return state.rules.winWave <= 0 ? 0f : state.wave / (float)state.rules.winWave;
-    }
-
     void update(){
         if(state.isPaused() || state.gameOver) return;
 
@@ -235,12 +231,7 @@ public class RogueRun{
 
         markProduced();
 
-        float progress = missionProgress();
-        while(mapPicks < Rewards.modifiersPerMap && progress >= (mapPicks + 1f) / (Rewards.modifiersPerMap + 1f)){
-            mapPicks++;
-            pendingModifiers++;
-            save();
-        }
+        countPicks();
 
         Building core = state.rules.defaultTeam.core();
         float all = stacks(Rewards.overclock) > 0 ? 1.5f : 1f;
@@ -268,6 +259,18 @@ public class RogueRun{
                 }
             }
         }
+    }
+
+    public int wavesCleared(){
+        return state.enemies == 0 ? state.wave : Math.max(state.wave - 1, 0);
+    }
+
+    void countPicks(){
+        int earned = wavesCleared() / Rewards.wavesPerModifier;
+        if(earned <= mapPicks) return;
+        pendingModifiers += earned - mapPicks;
+        mapPicks = earned;
+        save();
     }
 
     void updateShields(){
@@ -304,11 +307,11 @@ public class RogueRun{
         out.append("id=").append(id).append('\n');
         out.append("missions=").append(missionsCleared).append('\n');
         out.append("endless=").append(endless).append('\n');
+        out.append("curse=").append(pendingCurse).append('\n');
         out.append("relic=").append(pendingRelic).append('\n');
         out.append("modpicks=").append(pendingModifiers).append('\n');
         out.append("mappicks=").append(mapPicks).append('\n');
         out.append("taken=").append(picksTaken).append('\n');
-        out.append("enemystart=").append(enemyStart).append('\n');
         if(mission != null) out.append("mission=").append(mission).append('\n');
         if(slot != null) out.append("slot=").append(slot).append('\n');
         out.append("mutators=").append(mutators.map(m -> m.id).toString(",")).append('\n');
@@ -333,11 +336,11 @@ public class RogueRun{
                     case "id" -> run.id = Long.parseLong(v);
                     case "missions" -> run.missionsCleared = Integer.parseInt(v);
                     case "endless" -> run.endless = Integer.parseInt(v);
+                    case "curse" -> run.pendingCurse = Boolean.parseBoolean(v);
                     case "relic" -> run.pendingRelic = Boolean.parseBoolean(v);
                     case "modpicks" -> run.pendingModifiers = Integer.parseInt(v);
                     case "mappicks" -> run.mapPicks = Integer.parseInt(v);
                     case "taken" -> run.picksTaken = Integer.parseInt(v);
-                    case "enemystart" -> run.enemyStart = Integer.parseInt(v);
                     case "mission" -> run.mission = v;
                     case "slot" -> run.slot = v;
                     case "mutators" -> {

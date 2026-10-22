@@ -30,12 +30,10 @@ public class Mutators{
 
     public static class Mutator{
         public final String id, name, description;
-        public final int points;
 
-        Mutator(String id, String name, int points, String description){
+        Mutator(String id, String name, String description){
             this.id = id;
             this.name = name;
-            this.points = points;
             this.description = description;
         }
 
@@ -45,21 +43,21 @@ public class Mutators{
     }
 
     public static final Mutator
-    speedFreaks = new Mutator("speed-freaks", "Speed Freaks", 2, "Enemy units move twice as fast."),
-    lifeLeech = new Mutator("life-leech", "Life Leech", 2, "Enemies heal when they deal damage. Extra healing becomes a shield."),
-    longRange = new Mutator("long-range", "Long Range", 3, "Enemy units and turrets shoot from 50% farther away."),
-    justDie = new Mutator("just-die", "Just Die!", 4, "Enemy units come back to life once, 3 seconds after they die."),
-    selfDestruction = new Mutator("self-destruction", "Self Destruction", 2, "Enemy units explode when they die, damaging your nearby structures and units."),
-    mutuallyAssured = new Mutator("mutually-assured-destruction", "Mutually Assured Destruction", 2, "Enemy bosses set off a huge explosion shortly after they die."),
-    walkingInfested = new Mutator("walking-infested", "Walking Infested", 3, "Enemy ground units release the first unit of their line when they die. Bigger units release more."),
-    alienIncubation = new Mutator("alien-incubation", "Alien Incubation", 2, "Enemy air units release the first unit of their line when they die. Bigger units release more."),
-    barrier = new Mutator("barrier", "Barrier", 2, "The first time an enemy unit is hit, it gets a personal shield worth half its health for 5 seconds."),
-    avenger = new Mutator("avenger", "Avenger", 3, "When an enemy dies, nearby enemies grow bigger, faster, tougher and stronger. Stacks up to 5 times."),
-    inspiration = new Mutator("inspiration", "Inspiration", 2, "Enemy bosses make nearby enemies move, shoot and hit harder."),
-    evasiveManeuvers = new Mutator("evasive-maneuvers", "Evasive Maneuvers", 3, "Damaged enemy units teleport a few tiles forward. Each unit can do this every 4 seconds."),
-    transmutation = new Mutator("transmutation", "Transmutation", 3, "Enemy units that hit you have a small chance to turn into the next, stronger unit of their line."),
-    eminentDomain = new Mutator("eminent-domain", "Eminent Domain", 4, "Your destroyed structures come back 3 seconds later as enemy structures."),
-    aggressiveDeployment = new Mutator("aggressive-deployment", "Aggressive Deployment", 3, "An extra enemy group, half the size of the last wave, arrives between waves.");
+    speedFreaks = new Mutator("speed-freaks", "Speed Freaks", "Enemy units move twice as fast."),
+    lifeLeech = new Mutator("life-leech", "Life Leech", "Enemies heal when they deal damage. Extra healing becomes a shield."),
+    longRange = new Mutator("long-range", "Long Range", "Enemy units and turrets shoot from 50% farther away."),
+    justDie = new Mutator("just-die", "Just Die!", "Enemy units come back to life once, 3 seconds after they die."),
+    selfDestruction = new Mutator("self-destruction", "Self Destruction", "Enemy units explode when they die, damaging your nearby structures and units."),
+    mutuallyAssured = new Mutator("mutually-assured-destruction", "Mutually Assured Destruction", "Enemy bosses set off a huge explosion shortly after they die."),
+    walkingInfested = new Mutator("walking-infested", "Walking Infested", "Enemy ground units release the first unit of their line when they die. Bigger units release more."),
+    alienIncubation = new Mutator("alien-incubation", "Alien Incubation", "Enemy air units release the first unit of their line when they die. Bigger units release more."),
+    barrier = new Mutator("barrier", "Barrier", "The first time an enemy unit is hit, it gets a personal shield worth half its health for 5 seconds."),
+    avenger = new Mutator("avenger", "Avenger", "When an enemy dies, nearby enemies grow bigger, faster, tougher and stronger. Stacks up to 5 times."),
+    inspiration = new Mutator("inspiration", "Inspiration", "Enemy bosses make nearby enemies move, shoot and hit harder."),
+    evasiveManeuvers = new Mutator("evasive-maneuvers", "Evasive Maneuvers", "Damaged enemy units teleport a few tiles forward. Each unit can do this every 4 seconds."),
+    transmutation = new Mutator("transmutation", "Transmutation", "Enemy units that hit you have a small chance to turn into the next, stronger unit of their line."),
+    eminentDomain = new Mutator("eminent-domain", "Eminent Domain", "Your destroyed structures come back 3 seconds later as enemy structures."),
+    aggressiveDeployment = new Mutator("aggressive-deployment", "Aggressive Deployment", "An extra enemy group, half the size of the last wave, arrives between waves.");
 
     public static final Seq<Mutator> all = Seq.with(
         speedFreaks, lifeLeech, longRange, justDie,
@@ -148,24 +146,10 @@ public class Mutators{
         return all.find(m -> m.id.equals(id));
     }
 
-    public static int terror(int missionsCleared){
-        return missionsCleared;
-    }
-
-    public static int budget(int terror){
-        return terror * 2;
-    }
-
-    public static Seq<Mutator> roll(int terror, long seed){
-        Rand rand = new Rand(seed);
-        Seq<Mutator> pool = all.copy(), out = new Seq<>();
-        int left = budget(terror);
-        while(pool.any()){
-            Mutator m = pool.remove(rand.random(pool.size - 1));
-            if(m.points <= left){
-                out.add(m);
-                left -= m.points;
-            }
+    public static Seq<Mutator> offer(Seq<Mutator> owned, Rand rand){
+        Seq<Mutator> pool = all.select(m -> !owned.contains(m)), out = new Seq<>();
+        while(out.size < 3 && pool.any()){
+            out.add(pool.remove(rand.random(pool.size - 1)));
         }
         return out;
     }
