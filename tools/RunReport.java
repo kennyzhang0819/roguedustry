@@ -12,6 +12,7 @@ public class RunReport{
         Vars.headless = true;
         Vars.content = new ContentLoader();
         Vars.content.createBaseContent();
+        Rewards.load();
 
         System.out.println("== Campaign sectors ==");
         System.out.println("(other sectors stay locked until " + SectorPresets.planetaryTerminal.localizedName + " is captured)");
@@ -29,14 +30,17 @@ public class RunReport{
 
         System.out.println();
         System.out.println("== Relics and modifiers ==");
-        System.out.println("(a relic pick on each new sector, a modifier pick every " + Rewards.wavesPerModifier + " waves cleared on a sector)");
+        System.out.println("(a relic pick on each new sector, a modifier pick every " + Rewards.wavesPerModifier + " waves cleared on a sector; each modifier can be taken once, and each modifier card can be rerolled once into another of the same rarity)");
         for(Rewards.Reward r : Rewards.all){
-            System.out.printf("%-9s %-18s %-9s %s%n", r.rarity.label, r.name, r.isRelic() ? "single" : "stacks " + r.max, r.description);
+            String icon = r.iconContent == null ? "" : "  [icon: " + r.iconContent.localizedName + "]";
+            System.out.printf("%-9s %-18s %s%s%n", r.rarity.label, r.name, r.description, icon);
         }
 
         System.out.println();
+        System.out.println("Modifier odds: " + Rewards.Rarity.common.weight + "% common, " + Rewards.Rarity.uncommon.weight + "% uncommon, " + Rewards.Rarity.rare.weight + "% rare");
+        System.out.println();
         System.out.println("== Curses ==");
-        System.out.println("(a pick of 3 on every second new sector, kept for the whole run)");
+        System.out.println("(a pick of 3 on every new sector, kept for the whole run)");
         for(Mutators.Mutator m : Mutators.all){
             System.out.printf("%-28s %s%n", m.name, m.description);
         }

@@ -27,6 +27,8 @@ import mindustry.world.blocks.storage.CoreBlock.*;
 import mindustry.world.blocks.units.Reconstructor.*;
 import mindustry.world.blocks.units.UnitFactory.*;
 
+import java.util.*;
+
 import static mindustry.Vars.*;
 
 public class RogueRun{
@@ -35,6 +37,7 @@ public class RogueRun{
     public static @Nullable RogueRun current;
     static final ObjectMap<TechNode, ItemStack[]> realCosts = new ObjectMap<>();
     static final ObjectIntMap<CoreBlock> realCapacity = new ObjectIntMap<>();
+    static float realMonoMining = -1f;
 
     public long id;
     public int launches, picksTaken;
@@ -43,10 +46,13 @@ public class RogueRun{
     public final IntIntMap sectorPicks = new IntIntMap();
     public boolean pendingCurse, pendingRelic;
     public int pendingModifiers;
+    public final Seq<Rewards.Reward> modOffer = new Seq<>();
+    public final boolean[] rerolled = new boolean[3];
     public long loadedAt;
 
     float effectTimer, unlockTimer, cleanupTimer;
     final IntFloatMap lastShield = new IntFloatMap(), lastBuildup = new IntFloatMap();
+    final ObjectFloatMap<Block> blockSpeed = new ObjectFloatMap<>(), blockHealth = new ObjectFloatMap<>();
 
     public static boolean exists(){
         return Core.settings.has(saveKey);
@@ -72,13 +78,14 @@ public class RogueRun{
         }
         control.checkAutoUnlocks();
         lockSectors();
-        setCoreSize(current.stacks(Rewards.biggerCore) > 0);
+        current.applyTweaks();
     }
 
     public static void leave(){
         for(var e : realCosts) e.key.requirements = e.value;
         realCosts.clear();
-        setCoreSize(false);
+        setCoreSize(0);
+        setMonoMining(0);
         Profile.switchTo(Profile.player);
         Planets.serpulo.allowLaunchToNumbered = true;
         current = null;
@@ -95,12 +102,22 @@ public class RogueRun{
         Planets.serpulo.allowLaunchToNumbered = SectorPresets.planetaryTerminal.sector.isCaptured();
     }
 
-    static void setCoreSize(boolean big){
+    static void setCoreSize(int stacks){
         for(Block block : content.blocks()){
             if(!(block instanceof CoreBlock core)) continue;
             if(!realCapacity.containsKey(core)) realCapacity.put(core, core.itemCapacity);
-            core.itemCapacity = realCapacity.get(core) * (big ? 2 : 1);
+            core.itemCapacity = realCapacity.get(core) * (1 + stacks);
         }
+    }
+
+    static void setMonoMining(int stacks){
+        if(realMonoMining < 0f) realMonoMining = UnitTypes.mono.mineSpeed;
+        UnitTypes.mono.mineSpeed = realMonoMining * (1f + stacks);
+    }
+
+    void applyTweaks(){
+        setCoreSize(stacks(Rewards.biggerCore));
+        setMonoMining(stacks(Rewards.miningCrew));
     }
 
     public static boolean active(){
@@ -114,7 +131,7 @@ public class RogueRun{
     void onLaunch(){
         launches++;
         pendingRelic = Rewards.rollRelics(rewards, mutators.size, new Rand()).any();
-        pendingCurse = launches % 2 == 0 && curseOffer().any();
+        pendingCurse = curseOffer().any();
         save();
         Log.info("[Rogue] Launched to @ (launch @)", state.rules.sector.name(), launches);
     }
@@ -182,7 +199,29 @@ public class RogueRun{
     }
 
     public Seq<Rewards.Reward> modifierOffer(){
-        return Rewards.rollModifiers(rewards, new Rand(id * 6007L + picksTaken * 104729L));
+        if(modOffer.isEmpty() || modOffer.contains(r -> stacks(r) > 0)){
+            modOffer.set(Rewards.rollModifiers(rewards, new Rand(id * 6007L + picksTaken * 104729L)));
+            Arrays.fill(rerolled, false);
+            save();
+        }
+        return modOffer;
+    }
+
+    public boolean canReroll(int index){
+        return index < modOffer.size && !rerolled[index] && Rewards.rerollChoices(rewards, modOffer, modOffer.get(index)).any();
+    }
+
+    public void reroll(int index){
+        if(!canReroll(index)) return;
+        Seq<Rewards.Reward> choices = Rewards.rerollChoices(rewards, modOffer, modOffer.get(index));
+        modOffer.set(index, choices.random());
+        rerolled[index] = true;
+        save();
+    }
+
+    void clearOffer(){
+        modOffer.clear();
+        Arrays.fill(rerolled, false);
     }
 
     public void take(Rewards.Reward reward){
@@ -193,6 +232,7 @@ public class RogueRun{
             if(pendingModifiers <= 0) return;
             pendingModifiers--;
             picksTaken++;
+            clearOffer();
         }
         rewards.increment(reward);
         if(reward == Rewards.absolution){
@@ -203,8 +243,8 @@ public class RogueRun{
                 Log.info("[Rogue] Curse lifted: '@'", lifted.name);
             }
         }
+        applyTweaks();
         if(reward == Rewards.biggerCore){
-            setCoreSize(true);
             if(state.isGame()) for(CoreBuild core : state.rules.defaultTeam.cores()) core.onProximityUpdate();
         }
         save();
@@ -214,6 +254,7 @@ public class RogueRun{
     public void skipPicks(){
         pendingRelic = false;
         pendingModifiers = 0;
+        clearOffer();
         save();
     }
 
@@ -255,24 +296,37 @@ public class RogueRun{
             state.wavetime += 3f * Time.toMinutes;
         }
 
-        if(stacks(Rewards.fieldCommander) > 0){
-            for(Unit unit : state.rules.defaultTeam.data().units){
-                if(unit.spawnedByCore && !unit.hasEffect(Rewards.commanderEffect)) unit.apply(Rewards.commanderEffect);
+        for(var e : rewards) e.key.setStacks(e.value);
+        for(Unit unit : state.rules.defaultTeam.data().units){
+            for(var e : rewards){
+                Rewards.Reward reward = e.key;
+                if(reward.effect == null || unit.hasEffect(reward.effect)) continue;
+                if(reward == Rewards.fieldCommander ? unit.spawnedByCore : reward.units.contains(unit.type)) unit.apply(reward.effect);
+            }
+        }
+
+        blockSpeed.clear();
+        blockHealth.clear();
+        for(var e : rewards){
+            for(Block block : e.key.blocks){
+                if(e.key.speed > 0f) blockSpeed.put(block, blockSpeed.get(block, 1f) * (1f + e.key.speed * e.value));
+                if(e.key.wallHealth > 0f) blockHealth.put(block, blockHealth.get(block, 1f) + e.key.wallHealth * e.value);
             }
         }
 
         Building core = state.rules.defaultTeam.core();
-        float duos = 1f + 0.5f * stacks(Rewards.duoDrills);
         float factories = stacks(Rewards.warFactory) > 0 ? 2f : 1f, mining = stacks(Rewards.oreMagnet) > 0 ? 3f : 1f;
         boolean link = stacks(Rewards.coreLink) > 0, heal = stacks(Rewards.livingMetal) > 0;
 
         for(Building build : state.rules.defaultTeam.data().buildings){
-            float boost =
-                build.block == Blocks.duo ? duos :
-                build instanceof UnitFactoryBuild || build instanceof ReconstructorBuild ? factories :
+            float boost = blockSpeed.get(build.block, 1f) *
+                (build instanceof UnitFactoryBuild || build instanceof ReconstructorBuild ? factories :
                 build instanceof DrillBuild || build instanceof SolidPumpBuild ? mining :
-                1f;
+                1f);
             if(boost > 1.001f) build.applyBoost(boost, 45f);
+
+            float toughness = blockHealth.get(build.block, 1f);
+            if(toughness > 1.001f) toughen(build, build.block.health * toughness);
 
             if(heal && build.damaged()) build.heal(build.maxHealth * 0.01f);
 
@@ -281,6 +335,13 @@ public class RogueRun{
                 drill.items.clear();
             }
         }
+    }
+
+    static void toughen(Building build, float target){
+        if(Math.abs(build.maxHealth - target) < 0.5f) return;
+        //a reloaded save keeps the raised health but resets max health to the block's own
+        build.health = build.health > build.maxHealth ? Math.min(build.health, target) : build.health * target / build.maxHealth;
+        build.maxHealth = target;
     }
 
     void checkLastStand(){
@@ -334,6 +395,16 @@ public class RogueRun{
         });
     }
 
+    void onEnemyDeath(Unit unit){
+        if(unit.type.internal || unit instanceof TimedKillc || stacks(Rewards.plunder) <= 0) return;
+        CoreBuild core = state.teams.closestCore(unit.x, unit.y, state.rules.defaultTeam);
+        if(core == null) return;
+        for(ItemStack stack : unit.type.getTotalRequirements()){
+            int amount = Math.round(stack.amount * Rewards.plunderShare);
+            core.items.add(stack.item, Math.max(0, Math.min(amount, core.getMaximumAccepted(stack.item) - core.items.get(stack.item))));
+        }
+    }
+
     void scrap(Building build){
         if(build == null || build.team != state.rules.defaultTeam || build instanceof ConstructBuild || build instanceof CoreBuild) return;
         CoreBuild core = build.closestCore();
@@ -377,6 +448,10 @@ public class RogueRun{
         out.append("relic=").append(pendingRelic).append('\n');
         out.append("modpicks=").append(pendingModifiers).append('\n');
         out.append("taken=").append(picksTaken).append('\n');
+        out.append("modoffer=").append(modOffer.map(r -> r.id).toString(",")).append('\n');
+        out.append("rerolled=");
+        for(boolean b : rerolled) out.append(b ? '1' : '0');
+        out.append('\n');
         out.append("mutators=").append(mutators.map(m -> m.id).toString(",")).append('\n');
         out.append("sectorpicks=");
         for(var e : sectorPicks) out.append(e.key).append(':').append(e.value).append(',');
@@ -403,6 +478,15 @@ public class RogueRun{
                     case "relic" -> run.pendingRelic = Boolean.parseBoolean(v);
                     case "modpicks" -> run.pendingModifiers = Integer.parseInt(v);
                     case "taken" -> run.picksTaken = Integer.parseInt(v);
+                    case "modoffer" -> {
+                        for(String s : list(v)){
+                            Rewards.Reward r = Rewards.get(s);
+                            if(r != null) run.modOffer.add(r);
+                        }
+                    }
+                    case "rerolled" -> {
+                        for(int i = 0; i < Math.min(v.length(), run.rerolled.length); i++) run.rerolled[i] = v.charAt(i) == '1';
+                    }
                     case "mutators" -> {
                         for(String s : list(v)){
                             Mutators.Mutator m = Mutators.get(s);
@@ -468,7 +552,9 @@ public class RogueRun{
         });
 
         Events.on(UnitDestroyEvent.class, e -> {
-            if(active() && e.unit.team == state.rules.defaultTeam && current.stacks(Rewards.recycle) > 0) current.recycle(e.unit);
+            if(!active()) return;
+            if(e.unit.team == state.rules.defaultTeam && current.stacks(Rewards.recycle) > 0) current.recycle(e.unit);
+            if(e.unit.team == state.rules.waveTeam) current.onEnemyDeath(e.unit);
         });
 
         Events.on(BlockDestroyEvent.class, e -> {

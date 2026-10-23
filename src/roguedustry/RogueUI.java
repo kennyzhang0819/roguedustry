@@ -2,6 +2,8 @@ package roguedustry;
 
 import arc.*;
 import arc.graphics.*;
+import arc.graphics.g2d.*;
+import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
 import arc.util.*;
@@ -58,7 +60,7 @@ public class RogueUI{
         c.defaults().pad(4f);
 
         c.add("The Serpulo campaign, with roguelike rewards and [#" + curseColor + "]curses[].").row();
-        c.add("Research is free. Each new sector gives a [#" + Rewards.Rarity.relic.color + "]relic[], every second one a [#" + curseColor + "]curse[].").row();
+        c.add("Research is free. Each new sector gives a [#" + Rewards.Rarity.relic.color + "]relic[] and a [#" + curseColor + "]curse[].").row();
         c.add("A modifier every 10 waves. All of them last the whole run.").row();
         c.add("This is a separate campaign. Your own campaign is not touched.").color(Color.lightGray).padBottom(10f).row();
 
@@ -146,32 +148,43 @@ public class RogueUI{
 
     public void showReward(boolean relic){
         RogueRun run = run();
-        Seq<Rewards.Reward> rewards = relic ? run.relicOffer() : run.modifierOffer();
-        if(rewards.isEmpty()){
+        if((relic ? run.relicOffer() : run.modifierOffer()).isEmpty()){
             run.skipPicks();
             return;
         }
-        offered = rewards.map(r -> () -> run.take(r));
 
         rewardDialog = new BaseDialog(relic ? "[#" + Rewards.Rarity.relic.color + "]Relic" : "Modifier");
         Table c = rewardDialog.cont;
         String word = relic ? "[#" + Rewards.Rarity.relic.color + "]relic[]" : "modifier";
         c.add("Pick a " + word + ".").padBottom(8f).row();
 
-        c.table(row -> {
+        Table row = c.table().get();
+        Runnable[] fill = {null};
+        fill[0] = () -> {
+            row.clear();
+            Seq<Rewards.Reward> rewards = relic ? run.relicOffer() : run.modifierOffer();
+            offered = rewards.map(r -> () -> run.take(r));
             for(int i = 0; i < rewards.size; i++){
                 Rewards.Reward reward = rewards.get(i);
                 int index = i;
-                row.button(card -> {
-                    card.top().margin(12f);
-                    if(reward.hasIcon()) card.image(reward.icon()).size(64f).padBottom(6f).row();
-                    card.add(reward.rarity.label).color(reward.rarity.color).padBottom(4f).row();
-                    card.add(reward.name).color(reward.rarity.color).padBottom(8f).row();
-                    card.add(reward.description).wrap().width(220f).row();
-                    if(!reward.isRelic()) card.add(run.stacks(reward) > 0 ? "You have " + run.stacks(reward) + " of " + reward.max : "Stacks up to " + reward.max + " times").color(Color.lightGray).padTop(8f).row();
-                }, Styles.defaultb, () -> choose(index)).size(260f, relic ? 300f : 230f).pad(8f);
+                row.table(col -> {
+                    col.button(card -> {
+                        card.top().margin(12f);
+                        if(reward.hasIcon()) card.image(reward.icon()).size(64f).padBottom(6f).row();
+                        card.add(reward.rarity.label).color(reward.rarity.color).padBottom(4f).row();
+                        card.add(reward.name).color(reward.rarity.color).padBottom(8f).row();
+                        card.add(reward.description).wrap().width(220f).row();
+                    }, Styles.defaultb, () -> choose(index)).size(260f, 300f).row();
+                    if(!relic){
+                        col.button("Reroll", Icon.refresh, () -> {
+                            run.reroll(index);
+                            fill[0].run();
+                        }).disabled(b -> !run.canReroll(index)).size(260f, 50f).padTop(6f);
+                    }
+                }).pad(8f).top();
             }
-        });
+        };
+        fill[0].run();
         pauseWhileShown(rewardDialog);
         rewardDialog.show();
     }
@@ -194,17 +207,18 @@ public class RogueUI{
 
         c.pane(list -> {
             list.left().defaults().left().pad(2f);
-            rewardList(list, run, "Relics", true);
-            rewardList(list, run, "Modifiers", false);
+            rewardIcons(list, run, "Relics", true);
+            rewardIcons(list, run, "Modifiers", false);
             list.add("[#" + curseColor + "]Curses").padTop(10f).row();
-            if(run.mutators.isEmpty()) list.add("[lightgray]none").row();
-            for(Mutators.Mutator mutator : run.mutators){
-                list.table(line -> {
-                    line.left();
-                    line.image(mutator.icon()).size(40f).padRight(8f);
-                    line.add("[#" + curseColor + "]" + mutator.name + "[]: [lightgray]" + mutator.description).wrap().width(630f).left();
-                }).row();
-            }
+            list.table(row -> {
+                row.left();
+                if(run.mutators.isEmpty()) row.add("[lightgray]none");
+                int i = 0;
+                for(Mutators.Mutator mutator : run.mutators){
+                    iconCell(row, mutator.icon(), 0, "[#" + curseColor + "]" + mutator.name + "[]\n[lightgray]" + mutator.description);
+                    if(++i % iconsPerRow == 0) row.row();
+                }
+            }).row();
         }).maxHeight(Core.graphics.getHeight() / Scl.scl() * 0.65f).width(720f);
 
         infoDialog.addCloseButton();
@@ -212,19 +226,29 @@ public class RogueUI{
         infoDialog.show();
     }
 
-    static void rewardList(Table list, RogueRun run, String title, boolean relics){
+    static final int iconsPerRow = 10;
+
+    static void rewardIcons(Table list, RogueRun run, String title, boolean relics){
         list.add((relics ? "[#" + Rewards.Rarity.relic.color + "]" : "[accent]") + title).padTop(relics ? 0f : 10f).row();
-        boolean any = false;
-        for(var e : run.rewards){
-            if(e.key.isRelic() != relics) continue;
-            any = true;
-            list.table(line -> {
-                line.left();
-                if(e.key.hasIcon()) line.image(e.key.icon()).size(40f).padRight(8f);
-                line.add("[#" + e.key.rarity.color + "]" + e.key.name + (e.value > 1 ? " x" + e.value : "") + "[]: [lightgray]" + e.key.description).wrap().width(e.key.hasIcon() ? 630f : 680f).left();
-            }).row();
-        }
-        if(!any) list.add("[lightgray]none").row();
+        list.table(row -> {
+            row.left();
+            int i = 0;
+            for(Rewards.Reward reward : Rewards.all){
+                int n = run.stacks(reward);
+                if(n <= 0 || reward.isRelic() != relics) continue;
+                String tip = "[#" + reward.rarity.color + "]" + reward.name + (n > 1 ? " x" + n : "") + "[]\n[lightgray]" + reward.description;
+                iconCell(row, reward.hasIcon() ? reward.icon() : Icon.box.getRegion(), n, tip);
+                if(++i % iconsPerRow == 0) row.row();
+            }
+            if(i == 0) row.add("[lightgray]none");
+        }).row();
+    }
+
+    static void iconCell(Table row, TextureRegion icon, int count, String tip){
+        Table badge = new Table();
+        badge.bottom().right();
+        if(count > 1) badge.add("x" + count).style(Styles.outlineLabel);
+        row.stack(new Image(icon), badge).size(56f).pad(4f).tooltip(tip);
     }
 
     void buildHud(){

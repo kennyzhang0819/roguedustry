@@ -1,10 +1,14 @@
 # Roguedustry
 
-A roguelike mod for Mindustry v8 (build 160.7). It is a layer of modifiers on the real Serpulo campaign, played in a separate campaign profile so the player's own campaign is never changed. Launching, hubs, launch pads and losing sectors work exactly like the base game. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks can't be built. Sectors other than the named campaign maps stay locked until Planetary Launch Terminal is captured. Each new sector gives a relic pick, every second one also a curse for the enemies (a StarCraft II co-op style mutator), and every 10 waves cleared on a sector gives a modifier pick. All of them last the whole run.
+A roguelike mod for Mindustry v8 (build 160.7). It is a layer of modifiers on the real Serpulo campaign, played in a separate campaign profile so the player's own campaign is never changed. Launching, hubs, launch pads and losing sectors work exactly like the base game. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks can't be built. Sectors other than the named campaign maps stay locked until Planetary Launch Terminal is captured. Each new sector gives a relic pick and a curse for the enemies (a StarCraft II co-op style mutator), and every 10 waves cleared on a sector gives a modifier pick. All of them last the whole run.
 
 Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Mutators should be very punishing. In the UI they are called curses.
 
 Theme colors: curses red, relics purple, modifiers by rarity (common green, uncommon blue, rare gold).
+
+Relics and modifiers:
+- A relic is a big, one-of-a-kind effect that changes how you play (drills send ore straight to the core, all drills mine three times as fast). You can only have one of each.
+- A modifier targets one turret, unit line or economy building. Each one can be taken only once; one you skip can be offered again. Its icon is the game's own icon for what it targets.
 
 ## Writing rules
 - No code comments, except to warn about a game quirk that would cause a bug if someone missed it. Keep those to one line.

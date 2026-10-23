@@ -10,13 +10,13 @@ A roguelike layer on top of the Mindustry v8 Serpulo campaign. The campaign play
 
 ### Rewards
 
-- **Relics** are very strong. You pick 1 of 3 each time you land on a new sector. You can only have one of each.
-- **Modifiers** are smaller changes, often to one turret or unit. They come in Common, Uncommon and Rare. You pick 1 of 3 for every 10 waves you clear on a sector. They stack: you can pick the same one again, up to a limit, and each copy adds its effect again.
-- Both last for the whole run. There are 12 relics and 3 modifiers so far. The Absolution relic removes 2 random curses.
+- **Relics** change how you play, like drills sending ore straight to the core. You pick 1 of 3 each time you land on a new sector. You can only have one of each.
+- **Modifiers** make one turret, unit line or factory stronger. They come in Common (67%), Uncommon (28%) and Rare (5%). You pick 1 of 3 for every 10 waves you clear on a sector. Each modifier can be taken only once, but one you skip can come up again. Each of the 3 cards has a Reroll button you can use once, which swaps it for another modifier of the same rarity.
+- Both last for the whole run. There are 13 relics and 27 modifiers so far. The Absolution relic removes 2 random curses.
 
 ### Mutators
 
-Enemies get mutators, like in StarCraft II co-op. On every second new sector, right after your relic, you curse the enemies: pick 1 of 3 curses they don't have yet. They keep it for the whole run. There are 14 so far:
+Enemies get mutators, like in StarCraft II co-op. On every new sector, right after your relic, you curse the enemies: pick 1 of 3 curses they don't have yet. They keep it for the whole run. There are 14 so far:
 
 - Speed Freaks, Life Leech, Long Range, Just Die!
 - On death: Self Destruction, Mutually Assured Destruction (bosses), Walking Infested (ground units release the first unit of their line), Alien Incubation (the same for air units)
