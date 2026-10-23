@@ -5,15 +5,26 @@ import mindustry.game.EventType.*;
 import mindustry.mod.*;
 
 public class RoguedustryMod extends Mod{
+    public static final boolean roguelike = true;
+
     public static RogueUI ui;
+    public static WirelessUI wirelessUI;
 
     public RoguedustryMod(){
         RogueRun.registerEvents();
-        Mutators.registerEvents();
+        Curses.registerEvents();
+        Wireless.register();
+        TurretMods.registerEvents();
+        BlockMods.registerEvents();
 
         Events.on(ClientLoadEvent.class, e -> {
-            ui = new RogueUI();
-            ui.init();
+            wirelessUI = new WirelessUI();
+            wirelessUI.init();
+
+            if(roguelike){
+                ui = new RogueUI();
+                ui.init();
+            }
 
             if(AutoTest.enabled()){
                 new AutoTest().begin();
@@ -23,7 +34,9 @@ public class RoguedustryMod extends Mod{
 
     @Override
     public void loadContent(){
-        Mutators.load();
+        Curses.load();
         Rewards.load();
+        TurretMods.load();
+        BlockMods.load();
     }
 }

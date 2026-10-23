@@ -29,8 +29,12 @@ public class RunReport{
         }
 
         System.out.println();
-        System.out.println("== Relics and modifiers ==");
-        System.out.println("(a relic pick on each new sector, a modifier pick every " + Rewards.wavesPerModifier + " waves cleared on a sector; each modifier can be taken once, and each modifier card can be rerolled once into another of the same rarity)");
+        System.out.println("== Roguelike Campaign: blocks that can't be built ==");
+        System.out.println(Vars.content.blocks().select(Wireless::banned).map(b -> b.localizedName).toString(", "));
+        System.out.println();
+
+        System.out.println("== Relics and modifiers (roguelike) ==");
+        System.out.println("(per sector: a relic and curse pair on landing and at levels 10, 20, 30; a modifier pick per level; each modifier once, each card rerolled once)");
         for(Rewards.Reward r : Rewards.all){
             String icon = r.iconContent == null ? "" : "  [icon: " + r.iconContent.localizedName + "]";
             System.out.printf("%-9s %-18s %s%s%n", r.rarity.label, r.name, r.description, icon);
@@ -40,8 +44,8 @@ public class RunReport{
         System.out.println("Modifier odds: " + Rewards.Rarity.common.weight + "% common, " + Rewards.Rarity.uncommon.weight + "% uncommon, " + Rewards.Rarity.rare.weight + "% rare");
         System.out.println();
         System.out.println("== Curses ==");
-        System.out.println("(a pick of 3 on every new sector, kept for the whole run)");
-        for(Mutators.Mutator m : Mutators.all){
+        System.out.println("(each relic brings one at random; they last until the sector is captured)");
+        for(Curses.Curse m : Curses.all){
             System.out.printf("%-28s %s%n", m.name, m.description);
         }
     }

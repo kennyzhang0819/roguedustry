@@ -1,14 +1,16 @@
 # Roguedustry
 
-A roguelike mod for Mindustry v8 (build 160.7). It is a layer of modifiers on the real Serpulo campaign, played in a separate campaign profile so the player's own campaign is never changed. Launching, hubs, launch pads and losing sectors work exactly like the base game. Research is free: each node unlocks as soon as its campaign requirements are met. Logic blocks can't be built. Sectors other than the named campaign maps stay locked until Planetary Launch Terminal is captured. Each new sector gives a relic pick and a curse for the enemies (a StarCraft II co-op style mutator), and every 10 waves cleared on a sector gives a modifier pick. All of them last the whole run.
+A run has one of two modes, picked when it starts. Roguelike Campaign is wireless (no belts or pipes, every building trades items with the core and liquids with a shared liquid store, tap turrets to pick ammo and coolant), after the first wave it shortens the wait between waves by 90% and spawns 2.5 times the enemies, and the core unit builds twice as fast. Vanilla Campaign keeps belts and pipes. Both get the relics, curses and modifiers, and both are Serpulo only. Nothing changes outside a run.
 
-Mutator ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Mutators should be very punishing. In the UI they are called curses.
+A roguelike mod for Mindustry v8 (build 160.7). It is a layer of modifiers on the real Serpulo campaign, played in a separate campaign profile so the player's own campaign is never changed. Launching, hubs, launch pads and losing sectors work exactly like the base game. In the Roguelike Campaign research is free: each node unlocks as soon as its campaign requirements are met. The Vanilla Campaign uses normal research. Logic blocks can't be built. Sectors other than the named campaign maps stay locked until Planetary Launch Terminal is captured. Relics, curses (in the style of StarCraft II co-op) and modifiers belong to one sector: they are saved in the sector's own save file, start fresh on each new sector and are wiped when it is captured. A relic pick (each relic paired with a random curse) comes on landing and at levels 10, 20 and 30. Kills give XP, and each level gives a modifier pick. Sector invasions are off.
+
+Curse ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Curses should be very punishing. Call them curses everywhere, in the UI, the code and the docs. Give curses our own names, not the StarCraft II ones; names from the user's own game animechs (`C:\Users\DELL\Desktop\animechs\docs\mutators.md`) are fine. Keep every description to one short sentence.
 
 Theme colors: curses red, relics purple, modifiers by rarity (common green, uncommon blue, rare gold).
 
 Relics and modifiers:
 - A relic is a big, one-of-a-kind effect that changes how you play (drills send ore straight to the core, all drills mine three times as fast). You can only have one of each.
-- A modifier targets one turret, unit line or economy building. Each one can be taken only once; one you skip can be offered again. Its icon is the game's own icon for what it targets.
+- Modifiers belong to one turret, wall (all sizes of one wall count as one), building group (menders with repair points, the force projector) or production building, three each: a Common one that is a big stat boost in that turret's niche (several stats at once is fine, defense and repair count), and an Uncommon and a Rare one that are truly unique and make the player go "what the...". They are only offered once the turret is researched, and each can be taken once per sector. The icon is the turret's own icon. Turret effects live in `src/roguedustry/TurretMods.java`, the rest in `src/roguedustry/BlockMods.java`. A price cut is one of the Common ones for walls.
 
 ## Writing rules
 - No code comments, except to warn about a game quirk that would cause a bug if someone missed it. Keep those to one line.
@@ -17,23 +19,25 @@ Relics and modifiers:
 
 ## Commands
 - `./build.sh` builds `build/Roguedustry.jar`. It downloads the game jar into `libs/` the first time.
-- `./report.sh` prints the campaign sectors, disabled blocks, relics, modifiers and mutators, without opening the game.
+- `./report.sh` prints the campaign sectors, disabled blocks, relics, modifiers and curses, without opening the game.
 - `./play.sh` builds, installs the mod into `%APPDATA%\Mindustry\mods\` and starts the game. It uses the user's real game data, so don't use it for tests.
 
 ## Testing
 - After a change: build, then run `./report.sh`.
-- If the UI changed, run one short screenshot check (`ROGUE_AUTOTEST=hud`, about 30 seconds; see README).
+- If the UI changed, run one short screenshot check (`ROGUE_AUTOTEST=wireless` for the Roguelike Campaign or `hud` for the Vanilla Campaign, about 30 seconds each; see README).
 - Don't run full automated playthroughs. The user playtests.
 - When launching the game, point `APPDATA` (Windows) or `XDG_DATA_HOME` (Linux) at an empty folder so the user's saves aren't touched.
 
 ## Where things are
+- `src/roguedustry/Wireless.java`: wireless mode: banned blocks, moving items and liquids, the liquid store, per-building picks, saving them
+- `src/roguedustry/WirelessUI.java`: the tap pop-up (ammo, fuel, coolant, boost) and the liquid display
 - `src/roguedustry/Profile.java`: swaps the player's campaign and the run's campaign (settings and sector saves) and reloads the game's campaign data
-- `src/roguedustry/RogueRun.java`: run state and saving it, free research, sector lock, picks per sector, relic and modifier effects
+- `src/roguedustry/RogueRun.java`: run state and saving it, free research (Roguelike Campaign only), sector lock, picks per sector, relic and modifier effects
 - `src/roguedustry/Rewards.java`: relics and modifiers, their rarity, how many picks per sector
-- `src/roguedustry/Mutators.java`: enemy mutators and the mutator offer
+- `src/roguedustry/Curses.java`: curses and the curse offer
 - `src/roguedustry/RogueUI.java`: menu, curse, relic and modifier picks, Roguedustry Modifiers window and HUD button
 - `src/roguedustry/AutoTest.java`: the screenshot check
-- `sprites/mutators/`, `sprites/relics/`: curse and relic icons, drawn by `tools/make-icons.py` (needs Python with Pillow and numpy)
+- `sprites/curses/`, `sprites/relics/`: curse and relic icons, drawn by `tools/make-icons.py` (needs Python with Pillow and numpy)
 
 ## Icon style
 Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in the game source):
@@ -44,6 +48,7 @@ Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in th
 - Fill over half the frame (the game's average is about 57%). Use 2 to 4 colors, roughly half for the main color, a third for the second, the rest for one small bright accent.
 - Pair the theme color with a gray or slate of similar brightness, not a darker version of itself. Give a big shape a light side and a shadow side in two close tones (split it down the middle).
 - Curses lead with red, relics with purple. Don't reuse one layout for every icon; the game's icons don't share one.
+- Every new curse or relic gets its icon in the same change: add a function to `tools/make-icons.py`, run it, and commit the PNG.
 - Compare new icons side by side with the game's icons before committing.
 - `tools/`: run report, icon script and source download script (not part of the mod)
 

@@ -157,18 +157,6 @@ def mutually_assured():
     ]
 
 
-def walking_infested():
-    shell = poly([(4, 34), (4, 20), (18, 6), (38, 6), (52, 20), (52, 34), (44, 42), (12, 42)])
-    return [
-        (poly([(0, 48), (8, 40), (16, 40), (4, 52), (0, 52)]) | poly([(20, 40), (28, 40), (28, 58), (20, 58)]), GRAY),
-        (shell & (X < 28), GRAY_L),
-        (shell & (X >= 28), GRAY),
-        (poly([(24, 6), (32, 6), (32, 14), (28, 18), (24, 14)]), DARK),
-        (diamond(42, 52, 10) | diamond(56, 42, 8) | diamond(57, 58, 6), RED),
-        (diamond(40, 50, 3), PEACH),
-    ]
-
-
 def alien_incubation():
     egg = poly([(10, 58), (10, 26), (30, 6), (50, 26), (50, 58)])
     return [
@@ -244,15 +232,95 @@ def aggressive_deployment():
     ]
 
 
-def core_link():
-    core = poly([(28, 6), (34, 0), (58, 0), (64, 6), (64, 36), (58, 42), (34, 42), (28, 36)])
+def hungry_mechs():
+    body = poly([(2, 22), (18, 6), (42, 6), (58, 22), (44, 36), (58, 50), (44, 64), (18, 64), (2, 48)])
     return [
-        (poly([(14, 46), (38, 22), (48, 32), (24, 56)]), VIOLET),
-        (core & (X < 46), PURPLE),
-        (core & (X >= 46), DPURPLE),
-        (poly([(40, 14), (52, 14), (52, 28), (40, 28)]), PLUM),
-        (poly([(0, 40), (22, 40), (26, 44), (26, 64), (0, 64)]), GRAY),
-        (diamond(12, 52, 6), OCHRE),
+        (body & (X < 30), RED),
+        (body & (X >= 30), MUTED_RED),
+        (diamond(58, 36, 9), GRAY_L),
+        (diamond(62, 36, 4), GRAY),
+        (diamond(24, 24, 5), PEACH),
+    ]
+
+
+def mech_virus():
+    turret = poly([(0, 64), (0, 40), (8, 32), (30, 32), (38, 40), (38, 64)])
+    blob = poly([(26, 36), (26, 12), (38, 0), (52, 0), (64, 12), (64, 36), (50, 50), (40, 50)])
+    return [
+        (turret & (X < 19), GRAY_L),
+        (turret & (X >= 19), GRAY),
+        (poly([(12, 34), (30, 16), (38, 24), (20, 42)]), DARK),
+        (blob & (X < 45), RED),
+        (blob & (X >= 45), MUTED_RED),
+        (diamond(30, 46, 7) | diamond(56, 56, 6), RED),
+        (diamond(48, 22, 5), PEACH),
+    ]
+
+
+def overshields():
+    dome = poly([(0, 48), (0, 26), (24, 2), (40, 2), (64, 26), (64, 48), (54, 48), (54, 30), (36, 12), (28, 12), (10, 30), (10, 48)])
+    unit = peak(32, 22, 13, 64)
+    return [
+        (poly([(6, 56), (6, 34), (26, 14), (38, 14), (58, 34), (58, 56), (50, 56), (50, 38), (34, 22), (30, 22), (14, 38), (14, 56)]), SLATE_D),
+        (dome & (X < 32), SLATE_L),
+        (dome & (X >= 32), SLATE),
+        (unit & (X < 32), RED),
+        (unit & (X >= 32), MUTED_RED),
+        (diamond(32, 44, 5), PEACH),
+    ]
+
+
+def armored_swarms():
+    left, right, mid = peak(11, 24, 10, 64), peak(53, 30, 10, 64), peak(32, 6, 14, 64)
+    return [
+        (left & (Y >= 40), BRICK),
+        (left & (Y < 40), GRAY),
+        (right & (Y >= 46), BRICK),
+        (right & (Y < 46), GRAY),
+        (mid & (Y >= 28) & (X < 32), RED),
+        (mid & (Y >= 28) & (X >= 32), MUTED_RED),
+        (mid & (Y < 28) & (X < 32), GRAY_L),
+        (mid & (Y < 28) & (X >= 32), GRAY),
+        (poly([(18, 26), (46, 26), (46, 30), (18, 30)]), DARK),
+        (diamond(32, 44, 4), PEACH),
+    ]
+
+
+def leadership():
+    leader = peak(44, 0, 18, 64)
+    return [
+        (poly([(0, 40), (16, 24), (26, 24), (26, 34), (12, 48), (0, 48)]), SLATE_L),
+        (pod(10, 46, 8, 64), GRAY_L),
+        (pod(26, 38, 8, 64), GRAY),
+        (leader & (X < 44), RED),
+        (leader & (X >= 44), BRICK),
+        (poly([(36, 20), (44, 12), (52, 20), (52, 26), (44, 18), (36, 26)]), PEACH),
+    ]
+
+
+def shield_towers():
+    ring = poly([(0, 40), (0, 24), (22, 2), (42, 2), (64, 24), (64, 40), (54, 40), (54, 28), (38, 12), (26, 12), (10, 28), (10, 40)])
+    tower = poly([(16, 64), (16, 36), (24, 28), (40, 28), (48, 36), (48, 64)])
+    return [
+        (ring & (X < 32), RED),
+        (ring & (X >= 32), MUTED_RED),
+        (tower & (X < 32), GRAY_L),
+        (tower & (X >= 32), GRAY),
+        (poly([(24, 44), (32, 36), (40, 44), (40, 52), (32, 60), (24, 52)]), RED),
+        (diamond(32, 48, 3), PEACH),
+    ]
+
+
+def conquest():
+    base = poly([(4, 64), (4, 44), (12, 36), (40, 36), (48, 44), (48, 64)])
+    return [
+        (base & (X < 26), GRAY_L),
+        (base & (X >= 26), GRAY),
+        (poly([(6, 40), (24, 22), (32, 30), (14, 48)]), DARK),
+        (poly([(36, 40), (36, 0), (44, 0), (44, 40)]), DARK),
+        (poly([(44, 2), (64, 2), (64, 14), (56, 22), (64, 30), (64, 34), (44, 34)]) & (Y < 18), RED),
+        (poly([(44, 2), (64, 2), (64, 14), (56, 22), (64, 30), (64, 34), (44, 34)]) & (Y >= 18), MUTED_RED),
+        (diamond(52, 12, 4), PEACH),
     ]
 
 
@@ -287,17 +355,6 @@ def prefab():
         (block & (X >= 26), DPURPLE),
         (poly([(12, 36), (36, 36), (36, 54), (12, 54)]), VIOLET),
         (poly([(42, 0), (58, 0), (48, 10), (60, 10), (34, 36), (34, 28), (40, 22), (30, 22), (30, 12)]), PEACH),
-    ]
-
-
-def bigger_core():
-    big = poly([(18, 22), (24, 16), (58, 16), (64, 22), (64, 64), (18, 64)])
-    return [
-        (poly([(0, 8), (6, 2), (30, 2), (36, 8), (36, 34), (0, 34)]), VIOLET),
-        (big & (X < 42), PURPLE),
-        (big & (X >= 42), DPURPLE),
-        (poly([(30, 30), (52, 30), (52, 52), (30, 52)]), PLUM),
-        (diamond(41, 41, 7), PEACH),
     ]
 
 
@@ -375,8 +432,8 @@ def absolution():
 
 if __name__ == "__main__":
     for name, fn in [
-        ("core-link", core_link), ("living-metal", living_metal), ("grace-period", grace_period), ("prefab", prefab),
-        ("bigger-core", bigger_core), ("war-factory", war_factory), ("recycle", recycle), ("field-commander", field_commander),
+        ("living-metal", living_metal), ("grace-period", grace_period), ("prefab", prefab),
+        ("war-factory", war_factory), ("recycle", recycle), ("field-commander", field_commander),
         ("ore-magnet", ore_magnet), ("scrap-rebirth", scrap_rebirth), ("last-stand", last_stand), ("absolution", absolution),
     ]:
         icon("relics", name, fn())
@@ -384,10 +441,12 @@ if __name__ == "__main__":
     for name, fn in [
         ("speed-freaks", speed_freaks), ("life-leech", life_leech), ("long-range", long_range), ("just-die", just_die),
         ("self-destruction", self_destruction), ("mutually-assured-destruction", mutually_assured),
-        ("walking-infested", walking_infested), ("alien-incubation", alien_incubation), ("barrier", barrier),
+        ("alien-incubation", alien_incubation), ("barrier", barrier),
         ("avenger", avenger), ("inspiration", inspiration), ("evasive-maneuvers", evasive_maneuvers),
         ("transmutation", transmutation), ("aggressive-deployment", aggressive_deployment),
+        ("hungry-mechs", hungry_mechs), ("mech-virus", mech_virus), ("overshields", overshields), ("armored-swarms", armored_swarms),
+        ("leadership", leadership), ("shield-towers", shield_towers), ("conquest", conquest),
     ]:
-        icon("mutators", name, fn())
+        icon("curses", name, fn())
 
     print("Icons written to", os.path.abspath(SPRITES))

@@ -2,7 +2,7 @@ name: "roguedustry"
 displayName: "Roguedustry"
 author: "kennyzhang0819"
 main: "roguedustry.RoguedustryMod"
-description: "Roguelike layer on the Serpulo campaign. Free research, a relic on every new sector, curses for the enemies and modifiers as you clear waves. Plays in a separate campaign, so your own campaign is not affected."
+description: "Roguelike runs on the Serpulo campaign, in a separate campaign so yours is not touched. Relics, curses and modifiers. Roguelike Campaign: no belts or pipes, every building trades with the core, faster and bigger waves. Vanilla Campaign: the normal game with the roguelike rewards."
 version: "0.1.0"
 minGameVersion: "154"
 java: true
