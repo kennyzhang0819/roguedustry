@@ -51,7 +51,7 @@ public class RunReport{
         for(var e : Weapons.steps){
             mindustry.world.blocks.defense.turrets.BaseTurret t = (mindustry.world.blocks.defense.turrets.BaseTurret)e.key;
             mindustry.ctype.UnlockableContent ammo = Weapons.firstAmmo(t);
-            System.out.println(t.localizedName + ": 1 " + (Weapons.support(t) ? "support" : ammo == null ? "power" : ammo.localizedName + " ammo") + String.format("  (range %.0f tiles, game damage per second %.0f, balance x%.2f, level 1 damage per second %.0f)", t.range * Weapons.globalRange / 8f, Weapons.gameDps(t), Weapons.balance(t), Weapons.levelOneDps(t)));
+            System.out.println(t.localizedName + ": 1 " + (Weapons.support(t) ? "support" : ammo == null ? "power" : ammo.localizedName + " ammo") + String.format("  (range %.0f tiles, game damage per second %.0f, balance x%.2f, level 1 damage per second %.0f)", Weapons.reach(t) / 8f, Weapons.gameDps(t), Weapons.balance(t), Weapons.levelOneDps(t)));
             for(int i = 0; i < e.value.size; i++) System.out.println("   " + (i + 2) + " " + e.value.get(i).text);
         }
         System.out.println();

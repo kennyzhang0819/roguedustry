@@ -7,6 +7,7 @@ import mindustry.content.*;
 import mindustry.ctype.*;
 import mindustry.entities.bullet.*;
 import mindustry.type.*;
+import mindustry.type.unit.*;
 import mindustry.world.*;
 import mindustry.world.blocks.defense.turrets.*;
 
@@ -16,14 +17,19 @@ public class Weapons{
     public static float globalDamage = 1f, globalFireRate = 2f, globalRange = 1f;
     public static final float levelDamage = 0.2f;
     public static final ObjectFloatMap<Block> niche = new ObjectFloatMap<>();
+    //extra starting range for turrets whose base game range is too short to keep enemies off the player
+    public static final ObjectFloatMap<Block> baseRange = new ObjectFloatMap<>();
+    public static final float liquidPush = 2f;
     public static final OrderedMap<Block, Seq<Step>> steps = new OrderedMap<>();
     public static final ObjectMap<Block, String> intro = new ObjectMap<>();
     static final ObjectMap<Block, UnlockableContent> startAmmo = new ObjectMap<>();
+    public static final ObjectSet<Block> erekir = new ObjectSet<>(), helpers = new ObjectSet<>();
+    static final ObjectFloatMap<Block> slower = new ObjectFloatMap<>();
+    public static float missileDamage = 1f;
 
     public static class Spec{
         public @Nullable UnlockableContent ammo;
         public float damage = 1f, reload = 1f, cool = 1f, range = 1f, speed = 1f, blast = 1f, burn = 1f, force = 1f, puddle = 1f, homing, knock, salvage;
-        public boolean disarm;
         public int shots, pierce, frag, lightning, fire;
         public @Nullable StatusEffect status;
     }
@@ -57,6 +63,7 @@ public class Weapons{
         if(item == null) item = firstAmmo(turret);
         if(turret instanceof ItemTurret it && it.ammoTypes.size > 0) return item instanceof Item i && it.ammoTypes.containsKey(i) ? it.ammoTypes.get(i) : it.ammoTypes.values().toSeq().first();
         if(turret instanceof LiquidTurret lt && lt.ammoTypes.size > 0) return item instanceof Liquid l && lt.ammoTypes.containsKey(l) ? lt.ammoTypes.get(l) : lt.ammoTypes.values().toSeq().first();
+        if(turret instanceof ContinuousLiquidTurret cl && cl.ammoTypes.size > 0) return item instanceof Liquid l && cl.ammoTypes.containsKey(l) ? cl.ammoTypes.get(l) : cl.ammoTypes.values().toSeq().first();
         if(turret instanceof PowerTurret power) return power.shootType;
         if(turret instanceof ContinuousTurret cont) return cont.shootType;
         return null;
@@ -66,6 +73,8 @@ public class Weapons{
         UnlockableContent start = startAmmo.get(turret);
         if(turret instanceof ItemTurret it && start instanceof Item i && it.ammoTypes.containsKey(i)) return start;
         if(turret instanceof LiquidTurret lt && start instanceof Liquid l && lt.ammoTypes.containsKey(l)) return start;
+        if(turret instanceof ContinuousLiquidTurret cl && start instanceof Liquid l && cl.ammoTypes.containsKey(l)) return start;
+        if(turret instanceof ContinuousLiquidTurret cl && cl.ammoTypes.size > 0) return cl.ammoTypes.keys().toSeq().first();
         if(turret instanceof ItemTurret it && it.ammoTypes.size > 0) return it.ammoTypes.keys().toSeq().first();
         if(turret instanceof LiquidTurret lt && lt.ammoTypes.size > 0) return lt.ammoTypes.keys().toSeq().first();
         return null;
@@ -79,6 +88,9 @@ public class Weapons{
         float hit = (b instanceof ArtilleryBulletType ? 0f : b.damage) + b.splashDamage;
         if(b.fragBullet != null) hit += b.fragBullets * (b.fragBullet.damage + b.fragBullet.splashDamage);
         if(b.lightning > 0) hit += b.lightning * (b.lightningDamage < 0f ? b.damage : b.lightningDamage);
+        if(b.intervalBullet != null) hit += b.lifetime / b.bulletInterval * b.intervalBullets * (b.intervalBullet.damage + b.intervalBullet.splashDamage);
+        if(b.fragBullet != null && b.fragBullet.spawnUnit != null) hit += b.fragBullets * hitDamage(b.fragBullet);
+        if(b.spawnUnit != null) for(Weapon w : b.spawnUnit.weapons) hit += hitDamage(w.bullet);
         return hit;
     }
 
@@ -86,7 +98,11 @@ public class Weapons{
         if(block instanceof TractorBeamTurret tractor) return tractor.damage * 60f;
         if(!(block instanceof Turret turret)) return 0f;
         BulletType b = ammo(turret, null);
-        float reload = turret.reload / b.reloadMultiplier;
+        if(turret instanceof ContinuousTurret){
+            float interval = b instanceof ContinuousBulletType c ? c.damageInterval : b instanceof PointLaserBulletType pl ? pl.damageInterval : 5f;
+            return b.damage * 60f / interval;
+        }
+        float reload = turret.reload * slower.get(turret, 1f) / b.reloadMultiplier;
         if(b instanceof ContinuousBulletType c) return c.damage * 60f / c.damageInterval * b.lifetime / (b.lifetime + reload);
         return hitDamage(b) * turret.shoot.shots * 60f / reload;
     }
@@ -109,22 +125,29 @@ public class Weapons{
         return any == null ? null : any.fragBullet;
     }
 
-    public static BulletType make(Turret turret, Spec s){
-        BulletType base = ammo(turret, s.ammo);
-        BulletType b = base.copy();
-        float dmg = s.damage * balance(turret) * globalDamage, rng = s.range * globalRange;
-        float reach = turret.range * rng;
+    static BulletType scaled(BulletType source, float dmg, int depth){
+        BulletType b = source.copy();
         b.damage *= dmg;
         b.splashDamage *= dmg;
+        if(b.lightningDamage > 0f) b.lightningDamage *= dmg;
+        b.collidesAir = b.collidesGround = true;
+        b.hitShake = b.despawnShake = 0f;
+        if(depth < 3 && b.fragBullet != null) b.fragBullet = scaled(b.fragBullet, dmg, depth + 1);
+        if(depth < 3 && b.intervalBullet != null) b.intervalBullet = scaled(b.intervalBullet, dmg, depth + 1);
+        return b;
+    }
+
+    public static BulletType make(Turret turret, Spec s){
+        BulletType base = ammo(turret, s.ammo);
+        float dmg = s.damage * balance(turret) * globalDamage, rng = s.range * globalRange * baseRange.get(turret, 1f);
+        //a continuous beam or flame does not fire faster with the global fire rate, so it hits that much harder instead
+        if(turret instanceof ContinuousTurret) dmg *= globalFireRate;
+        float reach = (turret.range + base.rangeChange) * rng;
+        BulletType b = scaled(base, dmg, 0);
+        if(b.spawnUnit != null) missileDamage = dmg;
         //liquid sprays do no damage in the base game, so a support turret's damage comes straight from its niche
         if(gameDps(turret) <= 0f && niche.get(turret, 0f) > 0f){
             b.damage = niche.get(turret, 0f) * (turret.reload / base.reloadMultiplier) / 60f / turret.shoot.shots * s.damage * globalDamage;
-        }
-        if(b.lightningDamage > 0f) b.lightningDamage *= dmg;
-        if(b.fragBullet != null){
-            b.fragBullet = b.fragBullet.copy();
-            b.fragBullet.damage *= dmg;
-            b.fragBullet.splashDamage *= dmg;
         }
         if(b.splashDamageRadius > 0f) b.splashDamageRadius *= s.blast;
         b.speed *= s.speed;
@@ -141,7 +164,7 @@ public class Weapons{
             b.pierceCap = Math.max(b.pierceCap, 1) + s.pierce;
         }
         b.homingPower += s.homing;
-        b.knockback = (b.knockback + s.knock) * s.force;
+        b.knockback = (b.knockback + s.knock) * s.force * (turret instanceof LiquidTurret ? liquidPush : 1f);
         if(b instanceof LiquidBulletType liquid) liquid.puddleSize *= s.puddle;
         if(s.frag > 0 && (b.fragBullet != null || fragPiece() != null)){
             if(b.fragBullet == null){
@@ -156,6 +179,8 @@ public class Weapons{
             if(b.lightningDamage <= 0f) b.lightningDamage = 15f * dmg;
             if(b.lightningLength <= 0) b.lightningLength = 8;
         }
+        //Afflict's orb only bursts when it runs out, far behind the crowd it flew through, so here it bursts on every hit
+        if(turret == Blocks.afflict) b.fragOnHit = true;
         if(s.status != null) b.status = s.status;
         b.statusDuration *= s.burn;
         if(s.fire > 0){
@@ -163,9 +188,11 @@ public class Weapons{
             b.incendChance = Math.max(b.incendChance, 0.5f);
             b.incendSpread = Math.max(b.incendSpread, 8f);
         }
-        b.hitShake = b.despawnShake = 0f;
-        if(b.fragBullet != null) b.fragBullet.hitShake = b.fragBullet.despawnShake = 0f;
-        b.collidesAir = b.collidesGround = true;
+        //Scorch's flame bullets are invisible and its flame effect has a fixed length, so a trail shows how far the fire really reaches
+        if(turret == Blocks.scorch){
+            b.trailEffect = Fx.hitFlameSmall;
+            b.trailChance = 0.6f;
+        }
         return b;
     }
 
@@ -230,13 +257,26 @@ public class Weapons{
         niche.put(turret, dps);
     }
 
+    public static float reach(BaseTurret turret){
+        return turret.range * globalRange * baseRange.get(turret, 1f);
+    }
+
+    public static float reload(Turret turret, @Nullable UnlockableContent ammo){
+        return turret.reload * slower.get(turret, 1f) / ammo(turret, ammo).reloadMultiplier / globalFireRate;
+    }
+
     public static void load(){
+        helpers.addAll(Blocks.wave, Blocks.tsunami, Blocks.parallax, Blocks.segment);
+        baseRange.put(Blocks.scorch, 1.75f);
+        baseRange.put(Blocks.fuse, 1.07f);
+        baseRange.put(Blocks.arc, 1.45f);
+        baseRange.put(Blocks.wave, 1.3f);
         //other mods can replace a turret's whole ammo list, so each turret's starting ammo is named here instead of taken from the list
         startAmmo.putAll(Blocks.duo, Items.copper, Blocks.scatter, Items.scrap, Blocks.scorch, Items.coal, Blocks.hail, Items.graphite,
             Blocks.wave, Liquids.water, Blocks.swarmer, Items.blastCompound, Blocks.salvo, Items.copper, Blocks.tsunami, Liquids.water,
             Blocks.fuse, Items.titanium, Blocks.ripple, Items.graphite, Blocks.cyclone, Items.metaglass, Blocks.foreshadow, Items.surgeAlloy,
             Blocks.spectre, Items.graphite);
-        define(Blocks.wave, 40f,
+        define(Blocks.wave, 60f,
             streams(1),
             loads(Liquids.oil, "tars enemies, slowing them and making fire burn them much harder"),
             lasts(3f, "Tar"),
@@ -247,7 +287,7 @@ public class Weapons{
             streams(1),
             step("Ignite: sprays set the ground alight", s -> s.fire += 2)
         );
-        define(Blocks.tsunami, 60f,
+        define(Blocks.tsunami, 90f,
             force(50, "knockback"),
             loads(Liquids.cryofluid, "freezes enemies, slowing them and weakening their armor"),
             lasts(3f, "Freezing"),
@@ -261,11 +301,14 @@ public class Weapons{
                 s.force += 1f;
             })
         );
-        define(Blocks.parallax, 30f,
+        define(Blocks.parallax, 60f,
             beams(1),
             force(40, "push"),
             range(30),
-            step("Disrupt: held enemies can't shoot", s -> s.disarm = true),
+            step("Overload: +1 beam and +30% range", s -> {
+                s.shots += 1;
+                s.range += 0.3f;
+            }),
             beams(1),
             damage(100),
             force(60, "push"),
@@ -291,7 +334,7 @@ public class Weapons{
         );
         intro.put(Blocks.wave, "Orbits you and sprays Water wherever you shoot, soaking and pushing enemies.");
         intro.put(Blocks.tsunami, "Orbits you and blasts Water wherever you shoot, shoving enemies far back.");
-        intro.put(Blocks.parallax, "Orbits you and, while you shoot, grabs the enemy nearest your aim, pushing it away and slowing it.");
+        intro.put(Blocks.parallax, "Orbits you and, while you shoot, grabs the enemy nearest your aim, slowing it and pushing it away.");
         intro.put(Blocks.segment, "Orbits you and shoots down enemy bullets on its own.");
 
         define(Blocks.duo, 220f,
@@ -394,7 +437,7 @@ public class Weapons{
                 s.damage += 0.5f;
             })
         );
-        define(Blocks.fuse, 400f,
+        define(Blocks.fuse, 500f,
             shots(1),
             range(30),
             water(),
@@ -462,6 +505,154 @@ public class Weapons{
             step("Scorched Earth: the beam sets the ground alight", s -> s.fire += 2),
             damage(50),
             step("Core Breach: +100% damage", s -> s.damage += 1f)
+        );
+        loadErekir();
+    }
+
+    static void loadErekir(){
+        erekir.addAll(Blocks.breach, Blocks.diffuse, Blocks.sublimate, Blocks.titan, Blocks.disperse, Blocks.afflict, Blocks.lustre, Blocks.scathe, Blocks.smite, Blocks.malign);
+        startAmmo.putAll(Blocks.breach, Items.beryllium, Blocks.diffuse, Items.graphite, Blocks.sublimate, Liquids.ozone, Blocks.titan, Items.thorium,
+            Blocks.disperse, Items.tungsten, Blocks.scathe, Items.carbide, Blocks.smite, Items.surgeAlloy);
+        slower.put(Blocks.malign, 16f);
+        slower.put(Blocks.afflict, 4f);
+        slower.put(Blocks.disperse, 2f);
+        baseRange.put(Blocks.scathe, 0.3f);
+        intro.put(Blocks.sublimate, "Orbits you and breathes a long flame wherever you shoot, burning through enemies.");
+        intro.put(Blocks.lustre, "Orbits you and holds a burning laser point wherever you aim.");
+        intro.put(Blocks.scathe, "Orbits you and launches a missile that flies to your aim and blows up a whole crowd.");
+        intro.put(Blocks.afflict, "Orbits you and fires a slow electric orb that sprays sparks and bursts at the end.");
+        intro.put(Blocks.malign, "Orbits you and fires homing charges that burst into lasers.");
+
+        define(Blocks.breach, 210f,
+            pierce(1),
+            water(),
+            loads(Items.tungsten, "harder rounds that go through more enemies and reach further"),
+            damage(50),
+            shots(1),
+            cryo(),
+            range(30),
+            loads(Items.carbide, "slow, huge rounds that split into 3 piercing shards"),
+            step("Breakthrough: +1 shot and +50% damage", s -> {
+                s.shots += 1;
+                s.damage += 0.5f;
+            })
+        );
+        define(Blocks.diffuse, 600f,
+            force(50, "knockback"),
+            range(25),
+            loads(Items.silicon, "pellets home in on enemies"),
+            water(),
+            pierce(1),
+            loads(Items.oxide, "heavy pellets, more than twice the damage"),
+            reload(40),
+            cryo(),
+            step("Buckshot: +100% damage and +100% knockback", s -> {
+                s.damage += 1f;
+                s.force += 1f;
+            })
+        );
+        define(Blocks.sublimate, 500f,
+            range(20),
+            damage(40),
+            pierce(1),
+            step("Burning: the flame sets enemies on fire", s -> s.status = StatusEffects.burning),
+            loads(Liquids.cyanogen, "a hotter, longer flame that goes through more enemies"),
+            range(20),
+            step("Wildfire: the flame sets the ground alight", s -> s.fire += 2),
+            damage(60),
+            step("Plasma Torch: +100% damage", s -> s.damage += 1f)
+        );
+        define(Blocks.titan, 110f,
+            blast(30),
+            water(),
+            shots(1),
+            loads(Items.oxide, "huge blasts that leave a field hurting enemies for a while"),
+            range(20),
+            cryo(),
+            shots(1),
+            loads(Items.carbide, "heavy shells that burst into 12 fragments"),
+            step("Siege: +100% damage and +30% blast radius", s -> {
+                s.damage += 1f;
+                s.blast += 0.3f;
+            })
+        );
+        define(Blocks.disperse, 300f,
+            shots(1),
+            water(),
+            step("Proximity: shots home in on enemies", s -> s.homing += 0.05f),
+            damage(50),
+            pierce(1),
+            cryo(),
+            loads(Items.surgeAlloy, "shots throw lightning as they fly"),
+            shots(1),
+            step("Flak Storm: -30% reload time and +50% damage", s -> {
+                s.reload *= 0.7f;
+                s.damage += 0.5f;
+            })
+        );
+        define(Blocks.afflict, 200f,
+            water(),
+            step("Charged: +10 sparks when the orb bursts", s -> s.frag += 10),
+            damage(50),
+            shots(1),
+            step("Thunder: the orb throws 4 lightning bolts when it hits", s -> s.lightning += 4),
+            cryo(),
+            pierce(2),
+            step("Overcharge: +10 sparks and +50% damage", s -> {
+                s.frag += 10;
+                s.damage += 0.5f;
+            }),
+            step("Tempest: +1 orb and +50% damage", s -> {
+                s.shots += 1;
+                s.damage += 0.5f;
+            })
+        );
+        define(Blocks.lustre, 550f,
+            damage(30),
+            damage(40),
+            step("Searing: the laser sets enemies on fire", s -> s.status = StatusEffects.burning),
+            damage(40),
+            range(20),
+            step("Melting: the laser melts enemies, weakening their armor", s -> s.status = StatusEffects.melting),
+            damage(60),
+            damage(60),
+            step("Focus: +100% damage", s -> s.damage += 1f)
+        );
+        define(Blocks.scathe, 100f,
+            reload(20),
+            water(),
+            shots(1),
+            loads(Items.phaseFabric, "slow missiles that carry a force field and blast a wider area"),
+            reload(20),
+            cryo(),
+            shots(1),
+            loads(Items.surgeAlloy, "missiles split into 5 smaller missiles and throw lightning"),
+            step("Doomsday: +1 missile and +50% damage", s -> {
+                s.shots += 1;
+                s.damage += 0.5f;
+            })
+        );
+        define(Blocks.smite, 110f,
+            water(),
+            pierce(2),
+            damage(50),
+            step("Thunder: each hit throws 2 lightning bolts", s -> s.lightning += 2),
+            cryo(),
+            range(20),
+            shots(1),
+            damage(50),
+            step("Judgement: +100% damage", s -> s.damage += 1f)
+        );
+        define(Blocks.malign, 250f,
+            water(),
+            damage(40),
+            step("Hunter: charges home in much harder", s -> s.homing += 0.1f),
+            shots(1),
+            cryo(),
+            step("Overload: each charge throws 3 lightning bolts", s -> s.lightning += 3),
+            damage(50),
+            shots(1),
+            step("Abyss: +100% damage", s -> s.damage += 1f)
         );
     }
 }

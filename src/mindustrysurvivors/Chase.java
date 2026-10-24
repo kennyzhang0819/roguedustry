@@ -125,7 +125,9 @@ public class Chase{
 
         @Override
         public void rawDamage(float amount){
-            if(!Survivor.dodges()) super.rawDamage(amount);
+            if(Survivor.dodges()) return;
+            super.rawDamage(amount);
+            Survivor.hurt(this, amount);
         }
     }
 

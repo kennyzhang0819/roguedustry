@@ -292,12 +292,47 @@ public class Arena{
     }
 
     //enemies hit harder every wave, so a strong build still has to keep up late in the run
-    static void rampDamage(){
-        state.rules.teams.get(state.rules.waveTeam).unitDamageMultiplier = 1f + enemyDamagePerWave * Math.max(state.wave - 1, 0);
+    //enemies hit harder every wave, and each endless cycle past wave 50 adds another 100% to their damage and health
+    static void rampDamage(int wave){
+        int script = scriptWave(wave), cycle = cycle(wave);
+        var team = state.rules.teams.get(state.rules.waveTeam);
+        team.unitDamageMultiplier = (1f + enemyDamagePerWave * Math.max(script - 1, 0)) * (1 + cycle);
+        team.unitHealthMultiplier = 1 + cycle;
     }
 
+    public static final String endlessTag = "mindustry-survivors-endless";
+
+    public static boolean endless(){
+        return state.rules.tags.getBool(endlessTag);
+    }
+
+    //past wave 50, endless repeats waves 41 to 50 in cycles of ten
+    public static int scriptWave(int wave){
+        return wave <= lastWave ? wave : lastWave - 9 + (wave - lastWave - 1) % 10;
+    }
+
+    public static int cycle(int wave){
+        return wave <= lastWave ? 0 : (wave - lastWave - 1) / 10 + 1;
+    }
+
+    public static void startEndless(){
+        state.rules.tags.put(endlessTag, "true");
+        state.rules.waveTimer = true;
+        state.wavetime = state.rules.waveSpacing;
+        Log.info("[Survivors] Endless started after wave @", lastWave);
+    }
+
+    public static void endRun(){
+        state.gameOver = true;
+        Events.fire(new GameOverEvent(state.rules.defaultTeam));
+    }
+
+    //Casual is not offered; an old Casual run or setting plays as Easy
+    public static final Difficulty[] difficulties = {Difficulty.easy, Difficulty.normal, Difficulty.hard, Difficulty.eradication};
+    static final float[] enemyShares = {0.25f, 0.5f, 0.75f, 1f};
+
     public static float enemyScale(Difficulty difficulty){
-        return difficulty.enemySpawnMultiplier / Difficulty.eradication.enemySpawnMultiplier;
+        return enemyShares[Math.max(Structs.indexOf(difficulties, difficulty), 0)];
     }
 
     public static Difficulty difficulty(){
@@ -309,7 +344,7 @@ public class Arena{
         for(Unit unit : state.rules.waveTeam.data().units.copy()) unit.remove();
         releasing.clear();
         state.rules.waveTimer = true;
-        state.wave = Mathf.clamp(wave, 1, lastWave);
+        state.wave = Mathf.clamp(wave, 1, endless() ? 9999 : lastWave);
         logic.runWave();
         Log.info("[Survivors] Admin skipped to wave @", wave);
     }
@@ -332,10 +367,10 @@ public class Arena{
 
     static void onWave(){
         int wave = state.wave - 1;
-        if(wave > lastWave || SurvivorsRun.current == null) return;
-        rampDamage();
-        release(wave, 1f);
-        if(wave >= lastWave) state.rules.waveTimer = false;
+        if((wave > lastWave && !endless()) || SurvivorsRun.current == null) return;
+        rampDamage(wave);
+        release(scriptWave(wave), 1f);
+        if(wave >= lastWave && !endless()) state.rules.waveTimer = false;
     }
 
     public static void release(int wave, float share){
@@ -385,10 +420,10 @@ public class Arena{
             recount();
         }
 
-        if(!won && state.wave > lastWave && releasing.isEmpty() && state.rules.waveTeam.data().units.isEmpty()){
+        if(!won && !endless() && state.wave > lastWave && releasing.isEmpty() && state.rules.waveTeam.data().units.isEmpty()){
             won = true;
-            state.gameOver = true;
-            Events.fire(new GameOverEvent(state.rules.defaultTeam));
+            if(headless || MindustrySurvivorsMod.ui == null) endRun();
+            else MindustrySurvivorsMod.ui.showEndlessChoice();
         }
     }
 

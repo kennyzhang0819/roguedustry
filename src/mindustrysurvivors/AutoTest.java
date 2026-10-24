@@ -55,6 +55,16 @@ public class AutoTest{
             });
             return;
         }
+        if("endless".equals(mode)){
+            later(2f, () -> SurvivorsRun.startNew());
+            Events.run(Trigger.newGame, () -> later(5f, this::endless));
+            return;
+        }
+        if("damage".equals(mode)){
+            later(2f, () -> SurvivorsRun.startNew(Difficulty.eradication, 0));
+            Events.run(Trigger.newGame, () -> later(4f, this::damage));
+            return;
+        }
         if("chase".equals(mode)){
             Chase.stressTest(this);
             return;
@@ -85,7 +95,12 @@ public class AutoTest{
             later(5.6f, () -> clickTab("Passives"));
             later(6.3f, () -> shot("01-database-passives"));
             later(6.6f, () -> Core.scene.getDialog().hide());
-            later(7.2f, () -> {
+            later(6.8f, () -> MindustrySurvivorsMod.ui.showSettings(0));
+            later(7.4f, () -> shot("01-settings"));
+            later(7.6f, () -> clickTab("Admin"));
+            later(8.1f, () -> shot("01-settings-admin"));
+            later(8.3f, () -> Core.scene.getDialog().hide());
+            later(8.6f, () -> {
                 Core.scene.getDialog().hide();
                 SurvivorsRun.startNew(Difficulty.eradication, 4);
             });
@@ -213,7 +228,9 @@ public class AutoTest{
             a.passive = Survivor.amount;
             b.passive = Survivor.armor;
             c.gun = Survivor.guns.find(g -> g.turret == Blocks.spectre);
-            Survivor.offer.set(Seq.with(a, b, c));
+            Survivor.Choice d = new Survivor.Choice();
+            d.bonus = true;
+            Survivor.offer.set(Seq.with(a, b, c, d));
             run.pendingModifiers = 1;
         });
         later(2f, () -> {
@@ -225,13 +242,14 @@ public class AutoTest{
             for(int i = 0; i < 7; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.lancer));
             for(int i = 0; i < 9; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.hail));
             for(int i = 0; i < 5; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.duo));
-            Survivor.give(Survivor.might);
+            Survivor.give(Survivor.bulwark);
             for(int i = 0; i < 5; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.parallax));
             for(int i = 0; i < 8; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.segment));
             for(int i = 0; i < 3; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.wave));
             Survivor.give(Survivor.aura);
             Survivor.give(Survivor.lifesteal);
-            Survivor.give(Survivor.evasion);
+            Survivor.give(Survivor.spark);
+            for(int i = 0; i < 3; i++) Survivor.give(Survivor.shield);
             Log.info("[Survivors-Test] Loadout: weapons=@ passives=@ mounts=@", Survivor.ownedGuns.map(g -> g.turret.name + ":" + Survivor.gunLevel.get(g, 0)),
                 Survivor.ownedPassives.map(p -> p.name + ":" + Survivor.level(p)), player.unit().mounts.length);
             logic.runWave();
@@ -301,7 +319,7 @@ public class AutoTest{
                 (i % 2 == 0 ? UnitTypes.flare : UnitTypes.horizon).spawn(state.rules.waveTeam, u.x + Tmp.v1.x, u.y + Tmp.v1.y).apply(StatusEffects.invincible, 600f);
             }
             u.health = u.maxHealth;
-            later(2.4f, () -> Log.info("[Survivors-Test] Air attack: health=@/@ 2.4s after 6 flares and 6 horizons arrived, enemy bullets shot down by Segment @", (int)player.unit().health, (int)player.unit().maxHealth, Survivor.shotDown));
+            later(2.4f, () -> Log.info("[Survivors-Test] Air attack: health=@/@ shield=@ abilities=@ 2.4s after 6 flares and 6 horizons arrived, enemy bullets shot down by Segment @", (int)player.unit().health, (int)player.unit().maxHealth, (int)player.unit().shield, player.unit().abilities.length, Survivor.shotDown));
         });
         later(9.5f, () -> renderer.setScale(renderer.maxScale()));
         later(10f, () -> {
@@ -340,6 +358,108 @@ public class AutoTest{
                     });
                 });
             });
+        });
+    }
+
+    final Seq<Unit> dummies = new Seq<>();
+    float dummyX, dummyY;
+    boolean firing;
+
+    void damage(){
+        state.rules.waveTimer = false;
+        Events.run(Trigger.update, () -> {
+            for(Unit e : state.rules.waveTeam.data().units.copy()) if(!dummies.contains(e)) e.remove();
+            Arena.releasing.clear();
+            for(int i = 0; i < dummies.size; i++){
+                Unit d = dummies.get(i);
+                d.set(dummyX + (i % 3 - 1) * 14f, dummyY + (i / 3 - 1) * 14f);
+                d.vel.setZero();
+            }
+        });
+        Events.run(Trigger.uiDrawEnd, () -> {
+            if(!firing || player.unit() == null) return;
+            player.shooting = true;
+            player.mouseX = dummyX;
+            player.mouseY = dummyY;
+            player.unit().aim(dummyX, dummyY);
+            player.unit().isShooting = true;
+        });
+        Seq<Runnable> steps = new Seq<>();
+        for(Block block : Weapons.steps.keys()){
+            if(!(block instanceof Turret turret) || Weapons.support(turret)) continue;
+            for(int level : new int[]{1, 10}){
+                steps.add(() -> measure(turret, level));
+            }
+        }
+        float t = 0f;
+        for(Runnable step : steps){
+            later(t, step);
+            t += 4.5f;
+        }
+        later(t + 1f, () -> {
+            Log.info("[Survivors-Test] RESULT done");
+            Core.app.exit();
+        });
+    }
+
+    void measure(Turret turret, int level){
+        Unit me = player.unit();
+        me.apply(StatusEffects.invincible, 60f * 60f);
+        me.health = me.maxHealth;
+        Survivor.ownedGuns.clear();
+        Survivor.gunLevel.clear();
+        Survivor.Gun gun = Survivor.guns.find(g -> g.turret == turret);
+        for(int i = 0; i < level; i++) Survivor.give(gun);
+        for(Unit d : dummies) d.remove();
+        dummies.clear();
+        dummyX = me.x + Math.min(80f, Weapons.reach(turret) * 0.7f);
+        dummyY = me.y;
+        for(int i = 0; i < 9; i++){
+            Unit d = UnitTypes.dagger.spawn(state.rules.waveTeam, dummyX, dummyY);
+            d.maxHealth = d.health = 1e7f;
+            d.armor = 0f;
+            d.apply(StatusEffects.disarmed, 60f * 60f);
+            dummies.add(d);
+        }
+        firing = true;
+        float seconds = 3f;
+        later(0.5f, () -> {
+            for(Unit d : dummies) d.health = d.maxHealth;
+        });
+        if(level == 10 && Weapons.erekir.contains(turret)) later(2f, () -> shot("damage-" + turret.name));
+        later(0.5f + seconds, () -> {
+            float total = 0f;
+            for(Unit d : dummies) total += d.maxHealth - d.health;
+            float center = dummies.get(4).maxHealth - dummies.get(4).health;
+            firing = false;
+            Log.info("[Survivors-Test] Damage @ level @: @ per second to the group, @ per second to the middle dummy, @ tiles away", turret.name, level, (int)(total / seconds), (int)(center / seconds), (int)((dummyX - me.x) / 8f));
+        });
+    }
+
+    void endless(){
+        Arena.skipTo(Arena.lastWave);
+        later(1f, () -> {
+            for(Unit unit : state.rules.waveTeam.data().units.copy()) unit.remove();
+            Arena.releasing.clear();
+        });
+        later(2.5f, () -> {
+            var dialog = Core.scene.getDialog();
+            Log.info("[Survivors-Test] After wave @ cleared: dialog=@ gameOver=@", Arena.lastWave, dialog == null ? "none" : dialog.title.getText(), state.gameOver);
+            shot("endless-choice");
+        });
+        later(3.5f, () -> {
+            if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
+            Arena.startEndless();
+            for(int wave : new int[]{51, 60, 61}){
+                Arena.skipTo(wave);
+                var team = state.rules.teams.get(state.rules.waveTeam);
+                Log.info("[Survivors-Test] Endless wave @: plays wave @, cycle @, enemy health x@ damage x@", wave, Arena.scriptWave(wave), Arena.cycle(wave), team.unitHealthMultiplier, Strings.fixed(team.unitDamageMultiplier, 2));
+            }
+        });
+        later(5f, () -> {
+            Log.info("[Survivors-Test] Endless running: wave=@ enemies=@ gameOver=@ endless=@", state.wave, state.rules.waveTeam.data().units.size, state.gameOver, Arena.endless());
+            Log.info("[Survivors-Test] RESULT endless done");
+            Core.app.exit();
         });
     }
 

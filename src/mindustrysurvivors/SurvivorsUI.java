@@ -7,6 +7,7 @@ import arc.func.*;
 import arc.math.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
+import arc.scene.style.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
@@ -79,7 +80,7 @@ public class SurvivorsUI{
     }
 
     public void showMenu(){
-        menuDialog = new BaseDialog("");
+        menuDialog = new BaseDialog("", pageStyle(false));
         Table c = menuDialog.cont;
         c.defaults().pad(4f);
 
@@ -90,10 +91,33 @@ public class SurvivorsUI{
 
         String[] picked = {Core.settings.getString(Arena.difficultyKey, Difficulty.eradication.name())};
         int[] heat = {Mathf.clamp(Core.settings.getInt(heatKey, 0), 0, SurvivorsRun.maxHeat)};
+        if(SurvivorsRun.exists()){
+            c.table(row -> {
+                row.button("Continue run", Icon.play, () -> {
+                    menuDialog.hide();
+                    SurvivorsRun.resume();
+                }).size(292f, 64f);
+                row.button(Icon.trash, Styles.defaulti, () -> ui.showConfirm("Delete save", "This run will be lost. Are you sure?", () -> {
+                    SurvivorsRun.abandon();
+                    menuDialog.hide();
+                    showMenu();
+                })).size(64f, 64f).padLeft(4f).tooltip("Delete this save");
+            }).row();
+        }
+        Runnable start = () -> {
+            menuDialog.hide();
+            Difficulty difficulty = Structs.find(Arena.difficulties, d -> d.name().equals(picked[0]));
+            if(difficulty == null && picked[0].equals(Difficulty.casual.name())) difficulty = Difficulty.easy;
+            SurvivorsRun.startNew(difficulty == null ? Difficulty.eradication : difficulty, heat[0]);
+        };
+        c.button("New Game", Icon.play, () -> {
+            if(SurvivorsRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", start);
+            else start.run();
+        }).size(360f, 64f).row();
         c.button(b -> b.label(() -> "Difficulty: " + coloredDifficulty(picked[0], heat[0])), Styles.defaultb, () -> {
-            BaseDialog pick = new BaseDialog("Difficulty");
+            BaseDialog pick = new BaseDialog("Difficulty", pageStyle(true));
             pick.cont.defaults().size(360f, 56f).pad(3f);
-            for(Difficulty difficulty : Difficulty.all){
+            for(Difficulty difficulty : Arena.difficulties){
                 pick.cont.button(coloredDifficulty(difficulty.name(), 0), Styles.togglet, () -> {
                     picked[0] = difficulty.name();
                     heat[0] = 0;
@@ -112,58 +136,33 @@ public class SurvivorsUI{
             }
             pick.cont.add("[#" + curseColor + "]Extra random curses are added.").wrap().width(360f).height(-1f).padTop(6f).row();
             pick.addCloseButton();
-            overMenu(pick);
             pick.show();
-        }).size(360f, 50f).padBottom(14f).row();
-
-        if(SurvivorsRun.exists()){
-            c.table(row -> {
-                row.button("Continue run", Icon.play, () -> {
-                    menuDialog.hide();
-                    SurvivorsRun.resume();
-                }).size(292f, 64f);
-                row.button(Icon.trash, Styles.defaulti, () -> ui.showConfirm("Delete save", "This run will be lost. Are you sure?", () -> {
-                    SurvivorsRun.abandon();
-                    menuDialog.hide();
-                    showMenu();
-                })).size(64f, 64f).padLeft(4f).tooltip("Delete this save");
-            }).row();
-        }
-        Runnable start = () -> {
-            menuDialog.hide();
-            Difficulty difficulty = Structs.find(Difficulty.all, d -> d.name().equals(picked[0]));
-            SurvivorsRun.startNew(difficulty == null ? Difficulty.eradication : difficulty, heat[0]);
-        };
-        c.button("New Game", Icon.play, () -> {
-            if(SurvivorsRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", start);
-            else start.run();
-        }).size(360f, 64f).row();
+        }).size(360f, 50f).row();
 
         c.button("Info & Database", Icon.book, this::showDatabase).size(360f, 50f).row();
-
-        c.check("Admin tools", Core.settings.getBool(adminKey, false), v -> Core.settings.put(adminKey, v)).padTop(10f).row();
+        c.button("Settings", Icon.settings, () -> showSettings(0)).size(360f, 50f).row();
 
         menuDialog.addCloseButton();
         menuDialog.show();
     }
 
-    static final String[] difficultyColors = {"7ce07c", "b8e07c", "ffd37f", "ff9a4f", "f25555"};
+    static final String[] difficultyColors = {"7ce07c", "ffd37f", "ff9a4f", "f25555"};
 
     //greener is easier, redder is harder, and the cursed levels past Eradication are purple like their curses
     static String coloredDifficulty(String name, int heat){
         if(heat > 0) return "[#" + curseColor + "]" + Difficulty.eradication.localized() + " +" + heat + "[]";
-        Difficulty difficulty = Structs.find(Difficulty.all, d -> d.name().equals(name));
-        if(difficulty == null) difficulty = Difficulty.eradication;
-        return "[#" + difficultyColors[Math.min(difficulty.ordinal(), difficultyColors.length - 1)] + "]" + difficulty.localized() + "[]";
+        Difficulty difficulty = Structs.find(Arena.difficulties, d -> d.name().equals(name));
+        if(difficulty == null) difficulty = name.equals(Difficulty.casual.name()) ? Difficulty.easy : Difficulty.eradication;
+        return "[#" + difficultyColors[Structs.indexOf(Arena.difficulties, difficulty)] + "]" + difficulty.localized() + "[]";
     }
 
     public void showDatabase(){
-        BaseDialog dialog = new BaseDialog("Info & Database");
+        BaseDialog dialog = new BaseDialog("Info & Database", pageStyle(true));
         Seq<BaseTurret> turrets = new Seq<>();
         for(Block block : Weapons.steps.keys()){
             if(block instanceof BaseTurret turret) turrets.add(turret);
         }
-        turrets.sort(t -> Weapons.intro.containsKey(t) ? 1 : 0);
+        turrets.sort(t -> Weapons.erekir.contains(t) ? 2 : Weapons.helpers.contains(t) ? 1 : 0);
         int[] tab = {0};
         BaseTurret[] shown = {turrets.isEmpty() ? null : turrets.first()};
 
@@ -212,16 +211,43 @@ public class SurvivorsUI{
 
         dialog.addCloseButton();
         pauseWhileShown(dialog);
-        overMenu(dialog);
         dialog.show();
     }
 
-    void overMenu(BaseDialog dialog){
-        BaseDialog menu = menuDialog;
-        if(menu != null && menu.isShown()){
-            menu.hide(null);
-            dialog.hidden(() -> menu.show(Core.scene, null));
+    static @Nullable Dialog.DialogStyle menuStyle, subpageStyle;
+
+    //the Survivors pages cover the whole screen with their own backdrop; pages opened from the menu dim it so their text stays readable
+    static Dialog.DialogStyle pageStyle(boolean dim){
+        if(menuStyle == null){
+            TextureRegion art = Core.atlas.find("mindustry-survivors-menu-bg");
+            menuStyle = withBackdrop(Core.atlas.isFound(art) ? cover(art, 0f) : Styles.black);
+            subpageStyle = withBackdrop(Core.atlas.isFound(art) ? cover(art, 0.6f) : Styles.black);
         }
+        return dim ? subpageStyle : menuStyle;
+    }
+
+    static Dialog.DialogStyle withBackdrop(Drawable backdrop){
+        Dialog.DialogStyle style = new Dialog.DialogStyle();
+        style.stageBackground = backdrop;
+        style.background = Styles.fullDialog.background;
+        style.titleFont = Styles.fullDialog.titleFont;
+        style.titleFontColor = Styles.fullDialog.titleFontColor;
+        return style;
+    }
+
+    static Drawable cover(TextureRegion art, float dim){
+        return new BaseDrawable(){
+            @Override
+            public void draw(float x, float y, float width, float height){
+                float alpha = Draw.getColor().a, scale = Math.max(width / art.width, height / art.height);
+                Draw.rect(art, x + width / 2f, y + height / 2f, art.width * scale, art.height * scale);
+                if(dim > 0f){
+                    Draw.color(0f, 0f, 0f, dim * alpha);
+                    Fill.crect(x, y, width, height);
+                    Draw.color(1f, 1f, 1f, alpha);
+                }
+            }
+        };
     }
 
     void infoPage(Table t){
@@ -247,7 +273,7 @@ public class SurvivorsUI{
             head.table(name -> {
                 name.left();
                 name.add(turret.localizedName).color(Pal.accent).left().row();
-                name.add((Weapons.intro.containsKey(turret) ? "Support turret" : "Weapon") + (dps > 0f ? ", about " + Math.round(dps) + " damage per second at level 1" : "")).color(Color.lightGray).left();
+                name.add("Weapon" + (dps > 0f ? ", about " + Math.round(dps) + " damage per second at level 1" : "")).color(Color.lightGray).left();
             });
         }).left().padBottom(10f).row();
         t.add(Survivor.intro(turret)).wrap().width(620f).left().padBottom(6f).row();
@@ -407,6 +433,25 @@ public class SurvivorsUI{
         rewardDialog.show();
     }
 
+    public void showEndlessChoice(){
+        BaseDialog dialog = new BaseDialog("Wave " + Arena.lastWave + " cleared!");
+        Table c = dialog.cont;
+        c.add("You survived all " + Arena.lastWave + " waves.").padBottom(10f).row();
+        c.add("[lightgray]Endless repeats waves " + (Arena.lastWave - 9) + " to " + Arena.lastWave + ", and every ten waves enemies get another 100% health and damage.").wrap().width(560f).padBottom(14f).row();
+        c.table(row -> {
+            row.button("Endless", Icon.refresh, () -> {
+                dialog.hide();
+                Arena.startEndless();
+            }).size(270f, 64f).pad(4f);
+            row.button("End run", Icon.ok, () -> {
+                dialog.hide();
+                Arena.endRun();
+            }).size(270f, 64f).pad(4f);
+        });
+        pauseWhileShown(dialog);
+        dialog.show();
+    }
+
     public void showLevelUp(){
         if(Survivor.offer.isEmpty()) Survivor.offer.set(Survivor.roll());
         rewardDialog = new BaseDialog("Level up!");
@@ -418,9 +463,12 @@ public class SurvivorsUI{
                 Survivor.Choice choice = Survivor.offer.get(i);
                 int index = i;
                 int next = choice.nextLevel();
-                Color color = choice.gun != null ? Pal.accent : choice.passive != null ? modifierColor : Pal.heal;
+                Color color = choice.gun != null ? Pal.accent : choice.passive != null ? modifierColor : choice.bonus ? Pal.lightOrange : Pal.heal;
+                String kind = choice.gun != null ? "WEAPON" : choice.passive != null ? "PASSIVE" : choice.bonus ? "BONUS" : "HEAL";
                 row.button(card -> {
-                    card.top().margin(12f);
+                    card.top().margin(0f);
+                    card.image(Tex.whiteui).color(color).height(5f).growX().row();
+                    card.add(kind).color(color).fontScale(0.85f).padTop(8f).padBottom(6f).row();
                     card.image(choice.icon()).size(64f).padBottom(6f).row();
                     card.add(choice.name()).color(color).wrap().width(210f).padBottom(4f).get().setAlignment(Align.center);
                     card.row();
@@ -430,7 +478,7 @@ public class SurvivorsUI{
                         if(stepIcon != null) line.image(stepIcon).size(32f).padRight(8f).top();
                         line.add(choice.description()).wrap().width(stepIcon != null ? 160f : 200f);
                     });
-                }, Styles.defaultb, () -> choose(index)).size(240f, 260f).pad(8f).top();
+                }, cardStyle(color), () -> choose(index)).size(240f, 290f).pad(8f).top();
             }
         }).row();
         c.table(t -> loadout(t, 48f)).padTop(10f);
@@ -440,27 +488,40 @@ public class SurvivorsUI{
 
     static final Color modifierColor = Color.valueOf("5c9cff");
 
+    //a card or slot fill in a dark shade of its type's color, so weapons, passives and heals read apart at a glance
+    static Drawable shade(Color color, float brightness){
+        return ((TextureRegionDrawable)Tex.whiteui).tint(Tmp.c1.set(color).mul(brightness).a(1f));
+    }
+
+    static Button.ButtonStyle cardStyle(Color color){
+        Button.ButtonStyle style = new Button.ButtonStyle(Styles.defaultb);
+        style.up = shade(color, 0.18f);
+        style.over = shade(color, 0.28f);
+        style.down = shade(color, 0.38f);
+        return style;
+    }
+
     static void loadout(Table t, float size){
         t.left();
         t.table(row -> {
             for(int i = 0; i < Survivor.maxWeapons; i++){
                 Survivor.Gun gun = i < Survivor.ownedGuns.size ? Survivor.ownedGuns.get(i) : null;
-                slot(row, gun == null ? null : gun.turret.uiIcon, gun == null ? 0 : Survivor.gunLevel.get(gun, 1), gun == null ? "Empty weapon slot" : gun.turret.localizedName, size);
+                slot(row, gun == null ? null : gun.turret.uiIcon, gun == null ? 0 : Survivor.gunLevel.get(gun, 1), gun == null ? "Empty weapon slot" : gun.turret.localizedName, size, Pal.accent);
             }
         }).left().row();
         t.table(row -> {
             for(int i = 0; i < Survivor.maxPassives; i++){
                 Survivor.Passive passive = i < Survivor.ownedPassives.size ? Survivor.ownedPassives.get(i) : null;
-                slot(row, passive == null ? null : passive.icon.uiIcon, passive == null ? 0 : Survivor.level(passive), passive == null ? "Empty passive slot" : passive.name + "\n[lightgray]" + passive.step(Survivor.level(passive)), size);
+                slot(row, passive == null ? null : passive.icon.uiIcon, passive == null ? 0 : Survivor.level(passive), passive == null ? "Empty passive slot" : passive.name + "\n[lightgray]" + passive.step(Survivor.level(passive)), size, modifierColor);
             }
         }).left();
     }
 
-    static void slot(Table row, @Nullable TextureRegion icon, int level, String tip, float size){
+    static void slot(Table row, @Nullable TextureRegion icon, int level, String tip, float size, Color color){
         Table badge = new Table();
         badge.bottom().right();
         if(level > 0) badge.add(String.valueOf(level)).style(Styles.outlineLabel);
-        Table back = new Table(Tex.pane);
+        Table back = new Table(shade(color, icon == null ? 0.12f : 0.3f));
         if(icon != null) back.image(icon).size(size * 0.7f);
         row.stack(back, badge).size(size).pad(2f).tooltip(tip);
     }
@@ -504,10 +565,57 @@ public class SurvivorsUI{
     }
 
     public void showAdmin(){
+        showSettings(1);
+    }
+
+    public void showSettings(int startTab){
+        BaseDialog dialog = new BaseDialog("Settings", pageStyle(true));
+        int[] tab = {startTab};
+        Table body = new Table();
+        Runnable[] fill = {null};
+        fill[0] = () -> {
+            body.clear();
+            body.top();
+            if(tab[0] == 0) gameSettings(body);
+            else adminPage(body, dialog);
+        };
+        dialog.cont.table(tabs -> {
+            String[] names = {"Game", "Admin"};
+            for(int i = 0; i < names.length; i++){
+                int index = i;
+                tabs.button(names[i], Styles.togglet, () -> {
+                    tab[0] = index;
+                    fill[0].run();
+                }).checked(b -> tab[0] == index).size(200f, 50f).pad(2f);
+            }
+        }).padBottom(10f).row();
+        dialog.cont.add(body).grow().top();
+        fill[0].run();
+        dialog.addCloseButton();
+        pauseWhileShown(dialog);
+        dialog.show();
+    }
+
+    void gameSettings(Table t){
+        t.defaults().pad(3f);
+        t.add("Turrets").color(Pal.accent).padBottom(4f).row();
+        t.add("Which turrets level-ups can offer.").color(Color.lightGray).padBottom(6f).row();
+        for(int i = 0; i < Survivor.pools.length; i++){
+            int pool = i;
+            t.button(Survivor.pools[i], Styles.togglet, () -> Core.settings.put(Survivor.poolKey, pool))
+                .checked(b -> Core.settings.getInt(Survivor.poolKey, 0) == pool).size(360f, 54f).row();
+        }
+        t.add("Changes apply to new runs.").color(Color.lightGray).padTop(6f).row();
+    }
+
+    void adminPage(Table c, BaseDialog dialog){
+        c.defaults().pad(3f);
+        c.check("Show the Admin button during a run", Core.settings.getBool(adminKey, false), v -> Core.settings.put(adminKey, v)).padBottom(8f).row();
         SurvivorsRun run = run();
-        if(!SurvivorsRun.active()) return;
-        BaseDialog dialog = new BaseDialog("Admin");
-        Table c = dialog.cont;
+        if(!SurvivorsRun.active()){
+            c.add("Start or continue a run to use the admin tools.").color(Color.lightGray).row();
+            return;
+        }
 
         c.table(row -> {
             row.defaults().size(220f, 54f).pad(4f);
@@ -544,11 +652,7 @@ public class SurvivorsUI{
                     if(++i % adminPerRow == 0) row.row();
                 }
             }).row();
-        }).maxHeight(Core.graphics.getHeight() / Scl.scl() * 0.6f).width(1100f);
-
-        dialog.addCloseButton();
-        pauseWhileShown(dialog);
-        dialog.show();
+        }).maxHeight(Core.graphics.getHeight() / Scl.scl() * 0.55f).width(1100f);
     }
 
     static final int adminPerRow = 7;

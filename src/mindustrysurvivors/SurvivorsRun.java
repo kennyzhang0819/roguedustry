@@ -184,7 +184,7 @@ public class SurvivorsRun{
     }
 
     public static float xpFor(int level){
-        return 5f + 10f * level + 0.4f * level * level;
+        return 5f + 10f * level;
     }
 
     public float xpProgress(){
