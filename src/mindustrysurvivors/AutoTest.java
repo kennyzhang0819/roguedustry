@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.files.*;
@@ -69,7 +69,7 @@ public class AutoTest{
         if("arena".equals(mode)){
             later(1f, () -> {
                 Core.settings.put(RogueUI.adminKey, true);
-                RoguedustryMod.ui.showMenu();
+                MindustrySurvivorsMod.ui.showMenu();
             });
             later(2f, () -> shot("01-difficulty"));
             later(2.2f, () -> {
@@ -78,17 +78,16 @@ public class AutoTest{
             });
             later(3f, () -> shot("01-difficulty-pick"));
             later(3.2f, () -> Core.scene.getDialog().hide());
-            later(3.5f, () -> RoguedustryMod.ui.showDatabase());
-            later(4.3f, () -> shot("01-database-turrets"));
-            later(4.6f, () -> {
-                Element tab = Core.scene.find(e -> e instanceof TextButton b && "Passives".equals(b.getText().toString()));
-                if(tab != null) tab.fireClick();
-            });
-            later(5.5f, () -> shot("01-database-passives"));
-            later(6f, () -> Core.scene.getDialog().hide());
-            later(6.5f, () -> {
+            later(3.5f, () -> MindustrySurvivorsMod.ui.showDatabase());
+            later(4.3f, () -> shot("01-database-info"));
+            later(4.6f, () -> clickTab("Turrets"));
+            later(5.3f, () -> shot("01-database-turrets"));
+            later(5.6f, () -> clickTab("Passives"));
+            later(6.3f, () -> shot("01-database-passives"));
+            later(6.6f, () -> Core.scene.getDialog().hide());
+            later(7.2f, () -> {
                 Core.scene.getDialog().hide();
-                RogueRun.startNew();
+                RogueRun.startNew(Difficulty.eradication, 4);
             });
             Events.run(Trigger.newGame, () -> {
                 if(!continued) later(7f, this::arena);
@@ -151,7 +150,7 @@ public class AutoTest{
 
     void onSectorLoaded(){
         RogueRun run = RogueRun.current;
-        RogueUI rui = RoguedustryMod.ui;
+        RogueUI rui = MindustrySurvivorsMod.ui;
         Log.info("[Rogue-Test] Sector loaded. active=@ launches=@ relicPending=@ unitCap=@ processorBanned=@ duoUnlocked=@",
             RogueRun.active(), run.launches, run.pendingRelic, mindustry.entities.Units.getCap(state.rules.defaultTeam),
             state.rules.bannedBlocks.contains(Blocks.microProcessor), Blocks.duo.unlocked());
@@ -202,8 +201,9 @@ public class AutoTest{
 
     void arena(){
         RogueRun run = RogueRun.current;
-        RogueUI rui = RoguedustryMod.ui;
+        RogueUI rui = MindustrySurvivorsMod.ui;
         Unit me = player.unit();
+        Log.info("[Rogue-Test] Curses rolled at Eradication +@: @", run.heat, run.curses.map(c -> c.name));
         Log.info("[Rogue-Test] Arena: active=@ size=@x@ ground=@ water=@ cores=@ player=@ at @,@ weapons=@ allowed=@",
             RogueRun.active(), world.width(), world.height(), Arena.groundSpawns.size, Arena.waterSpawns.size, state.rules.defaultTeam.cores().size,
             me == null ? "none" : me.type.name, me == null ? -1 : me.tileX(), me == null ? -1 : me.tileY(), Survivor.ownedGuns.map(g -> g.turret.name), state.rules.bannedBlocks.size);
@@ -331,8 +331,12 @@ public class AutoTest{
                     logic.reset();
                     later(0.5f, () -> {
                         Log.info("[Rogue-Test] Shake after the run: dagger death @ fortress step @ scepter death @ fortress shot @", UnitTypes.dagger.deathShake, UnitTypes.fortress.stepShake, UnitTypes.scepter.deathShake, UnitTypes.fortress.weapons.first().bullet.hitShake);
-                        Log.info("[Rogue-Test] RESULT done");
-                        Core.app.exit();
+                        MindustrySurvivorsMod.ui.showMenu();
+                        later(1f, () -> shot("06-menu"));
+                        later(2f, () -> {
+                            Log.info("[Rogue-Test] RESULT done");
+                            Core.app.exit();
+                        });
                     });
                 });
             });
@@ -363,11 +367,11 @@ public class AutoTest{
             Log.info("[Rogue-Test] Wireless after 6s: drillItems=@ duoAmmo=@ duoWater=@ poolWater=@ coreCopperChange=@",
                 drillTile == null ? -1 : drillTile.build.items.total(), duo.totalAmmo, duo.liquids.get(Liquids.water), Wireless.pool.get(Liquids.water, 0f), core.items.get(Items.copper) - copper);
             Core.camera.position.set(duo.x, duo.y);
-            RoguedustryMod.wirelessUI.show(duo);
+            MindustrySurvivorsMod.wirelessUI.show(duo);
         });
         later(7f, () -> shot("wireless"));
         later(7.5f, () -> {
-            RoguedustryMod.wirelessUI.hide();
+            MindustrySurvivorsMod.wirelessUI.hide();
             RogueRun.current.pendingGift = true;
         });
         later(9f, () -> shot("gift"));
@@ -384,7 +388,7 @@ public class AutoTest{
             run.adminToggle(Rewards.livingMetal);
             run.adminToggle(Curses.all.first());
             Core.settings.put(RogueUI.adminKey, true);
-            RoguedustryMod.ui.showAdmin();
+            MindustrySurvivorsMod.ui.showAdmin();
             Log.info("[Rogue-Test] Admin: relic=@ curse=@", run.stacks(Rewards.livingMetal), run.curses.contains(Curses.all.first()));
         });
         later(11f, () -> shot("admin"));
@@ -394,7 +398,7 @@ public class AutoTest{
             run.adminToggle(Curses.all.first());
             Log.info("[Rogue-Test] Admin removed: relic=@ curse=@", run.stacks(Rewards.livingMetal), run.curses.contains(Curses.all.first()));
             Log.info("[Rogue-Test] Campaign order: @", RogueRun.campaignOrder().map(p -> p.name));
-            RoguedustryMod.ui.showSectors((mindustry.ui.dialogs.BaseDialog)Core.scene.getDialog());
+            MindustrySurvivorsMod.ui.showSectors((mindustry.ui.dialogs.BaseDialog)Core.scene.getDialog());
         });
         later(12.5f, () -> shot("sectors"));
         later(13f, () -> {
@@ -679,7 +683,7 @@ public class AutoTest{
         RogueRun run = RogueRun.current;
         run.pendingRelic = false;
         if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
-        run.curses.set(Seq.with(Curses.hungryMechs, Curses.mechVirus, Curses.overshields, Curses.armoredSwarms, Curses.leadership, Curses.shieldTowers, Curses.conquest, Curses.speedFreaks));
+        run.curses.set(Seq.with(Curses.hungryMechs, Curses.mechVirus, Curses.overshields, Curses.armoredSwarms, Curses.leadership, Curses.shieldTowers, Curses.ambush, Curses.speedFreaks));
         Team enemy = state.rules.waveTeam, team = state.rules.defaultTeam;
         Building core = team.core();
         Tile spawn = spawner.getSpawns().first();
@@ -751,6 +755,11 @@ public class AutoTest{
             }
         }
         return best;
+    }
+
+    static void clickTab(String name){
+        Element tab = Core.scene.find(e -> e instanceof TextButton b && name.equals(b.getText().toString()));
+        if(tab != null) tab.fireClick();
     }
 
     void shot(String name){

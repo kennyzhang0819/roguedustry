@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.graphics.*;
@@ -58,11 +58,11 @@ public class Rewards{
         }
 
         public boolean hasIcon(){
-            return iconContent != null || Core.atlas.has("roguedustry-" + id);
+            return iconContent != null || Core.atlas.has("mindustry-survivors-" + id);
         }
 
         public TextureRegion icon(){
-            return iconContent != null ? iconContent.uiIcon : Core.atlas.find("roguedustry-" + id);
+            return iconContent != null ? iconContent.uiIcon : Core.atlas.find("mindustry-survivors-" + id);
         }
 
         void faster(float perStack, Block... targets){

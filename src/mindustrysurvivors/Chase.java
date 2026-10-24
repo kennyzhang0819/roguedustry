@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.func.*;
@@ -36,7 +36,7 @@ public class Chase{
     static final ObjectMap<BulletType, boolean[]> realHits = new ObjectMap<>();
 
     public static void load(){
-        landBoatId = EntityMapping.register("roguedustry-land-boat", LandBoat::new);
+        landBoatId = EntityMapping.register("mindustry-survivors-land-boat", LandBoat::new);
         walker = new UnitType("core-walker"){{
             constructor = Walker::new;
             localizedName = "Walker";

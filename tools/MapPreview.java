@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import mindustry.*;
 import mindustry.content.*;

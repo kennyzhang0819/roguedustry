@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.files.*;
@@ -14,7 +14,7 @@ import static mindustry.Vars.*;
 
 public class Profile{
     public static final String player = "player", run = "run";
-    static final String activeKey = "roguedustry-profile", stashPrefix = "rgd.", backupKey = "roguedustry-backup-made";
+    static final String activeKey = "mindustry-survivors-profile", stashPrefix = "survivors.", backupKey = "mindustry-survivors-backup-made";
     static final ObjectSet<String> singleKeys = ObjectSet.with("unlocks", "launch-resources-seq", "utimei", "turn", "last-sector-save");
 
     public static String live(){
@@ -26,7 +26,7 @@ public class Profile{
     }
 
     static boolean campaignKey(String key){
-        if(key.startsWith(stashPrefix) || key.startsWith("roguedustry")) return false;
+        if(key.startsWith(stashPrefix) || key.startsWith("mindustry-survivors")) return false;
         if(key.endsWith("-unlocked") || key.startsWith("req-") || key.startsWith("lastloadout-") || singleKeys.contains(key)) return true;
         for(Planet planet : content.planets()){
             if(key.startsWith(planet.name + "-")) return true;
@@ -35,7 +35,7 @@ public class Profile{
     }
 
     static Fi folder(String profile){
-        return dataDirectory.child("roguedustry").child(profile);
+        return dataDirectory.child("mindustry-survivors").child(profile);
     }
 
     static Seq<Fi> sectorFiles(Fi dir){
@@ -68,7 +68,7 @@ public class Profile{
 
     static void backupOnce(){
         if(Core.settings.getBool(backupKey, false)) return;
-        Fi dir = dataDirectory.child("roguedustry").child("campaign-backup");
+        Fi dir = dataDirectory.child("mindustry-survivors").child("campaign-backup");
         dir.mkdirs();
         StringBuilder keys = new StringBuilder();
         for(String key : Core.settings.keys()){

@@ -1,9 +1,10 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.func.*;
+import arc.math.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
@@ -27,19 +28,12 @@ import static mindustry.Vars.*;
 
 public class RogueUI{
     public @Nullable BaseDialog menuDialog, rewardDialog;
-    static final Color curseColor = Color.valueOf("f25555");
-    static final String adminKey = "roguedustry-admin";
+    static final Color curseColor = Color.valueOf("b07ae8");
+    static final String adminKey = "mindustry-survivors-admin", heatKey = "mindustry-survivors-heat";
     public Seq<Runnable> offered = new Seq<>();
 
     public void init(){
-        MenuButton button = new MenuButton("Mindustry Survivors", Icon.play, this::showMenu);
-        if(!mobile && ui.menufrag.desktopButtons != null){
-            ui.menufrag.desktopButtons.insert(1, button);
-            //the main menu only rebuilds its buttons on a resize
-            Events.fire(new ResizeEvent());
-        }else{
-            ui.menufrag.addButton(button);
-        }
+        ui.menufrag.addButton(new MenuButton("Mindustry Survivors", Icon.play, this::showMenu));
         buildHud();
         Events.run(Trigger.update, this::update);
     }
@@ -50,7 +44,7 @@ public class RogueUI{
 
     static java.lang.reflect.Field buildMenu;
     static boolean buildMenuFailed;
-    static final Boolp buildMenuShown = () -> ui.hudfrag.shown() && !Arena.active();
+    static @Nullable Boolp buildMenuShown;
 
     //the game rebuilds its build menu from time to time and sets its visibility again, so the menu is hidden every frame
     static void hideBuildMenu(){
@@ -61,7 +55,11 @@ public class RogueUI{
                 buildMenu.setAccessible(true);
             }
             Table menu = (Table)buildMenu.get(ui.hudfrag.blockfrag);
-            if(menu != null && menu.visibility != buildMenuShown) menu.visibility = buildMenuShown;
+            if(menu != null && menu.visibility != buildMenuShown){
+                Boolp shown = menu.visibility;
+                buildMenuShown = () -> !Arena.active() && (shown == null || shown.get());
+                menu.visibility = buildMenuShown;
+            }
         }catch(Exception e){
             buildMenuFailed = true;
             Log.err("[Rogue] Could not hide the build menu", e);
@@ -85,60 +83,63 @@ public class RogueUI{
         Table c = menuDialog.cont;
         c.defaults().pad(4f);
 
-        c.add("MINDUSTRY SURVIVORS").fontScale(2.5f).color(Pal.accent).padBottom(4f).row();
-        c.add("Mindustry, played like Vampire Survivors").color(Color.lightGray).padBottom(14f).row();
-        c.table(list -> {
-            list.left().defaults().left().padBottom(4f);
-            for(String line : new String[]{
-                "Survive " + Arena.lastWave + " waves on a random map. Enemies chase you from every side.",
-                "Kill enemies and pick up their gems to level up.",
-                "Turrets orbit you and fire with you. They have been reworked and balanced.",
-                "Up to " + Survivor.maxPassives + " passives boost you."
-            }){
-                list.add("[accent]-[] " + line).wrap().width(800f).row();
-            }
-        }).padBottom(14f).row();
+        TextureRegion title = Core.atlas.find("mindustry-survivors-title");
+        if(Core.atlas.isFound(title)) c.image(title).size(Math.min(title.width, 900f), Math.min(title.width, 900f) * title.height / title.width).padBottom(6f).row();
+        else c.add("MINDUSTRY SURVIVORS").fontScale(2.5f).color(Pal.accent).padBottom(4f).row();
+        c.add("Made by Zerkka").color(Color.lightGray).padBottom(18f).row();
 
         String[] picked = {Core.settings.getString(Arena.difficultyKey, Difficulty.eradication.name())};
-        c.button(b -> b.label(() -> "Difficulty: [accent]" + difficultyName(picked[0])), Styles.defaultb, () -> {
+        int[] heat = {Mathf.clamp(Core.settings.getInt(heatKey, 0), 0, RogueRun.maxHeat)};
+        c.button(b -> b.label(() -> "Difficulty: " + coloredDifficulty(picked[0], heat[0])), Styles.defaultb, () -> {
             BaseDialog pick = new BaseDialog("Difficulty");
             pick.cont.defaults().size(360f, 56f).pad(3f);
             for(Difficulty difficulty : Difficulty.all){
-                pick.cont.button(difficulty.localized(), Styles.togglet, () -> {
+                pick.cont.button(coloredDifficulty(difficulty.name(), 0), Styles.togglet, () -> {
                     picked[0] = difficulty.name();
+                    heat[0] = 0;
                     Core.settings.put(Arena.difficultyKey, picked[0]);
+                    Core.settings.put(heatKey, 0);
                     pick.hide();
-                }).checked(b -> picked[0].equals(difficulty.name())).row();
+                }).checked(b -> heat[0] == 0 && picked[0].equals(difficulty.name())).row();
             }
+            for(int h = 1; h <= RogueRun.maxHeat; h++){
+                int level = h;
+                pick.cont.button(coloredDifficulty(Difficulty.eradication.name(), h), Styles.togglet, () -> {
+                    heat[0] = level;
+                    Core.settings.put(heatKey, level);
+                    pick.hide();
+                }).checked(b -> heat[0] == level).row();
+            }
+            pick.cont.add("[#" + curseColor + "]Extra random curses are added.").wrap().width(360f).height(-1f).padTop(6f).row();
             pick.addCloseButton();
             overMenu(pick);
             pick.show();
         }).size(360f, 50f).padBottom(14f).row();
 
         if(RogueRun.exists()){
-            c.button("Continue run", Icon.play, () -> {
-                menuDialog.hide();
-                RogueRun.resume();
-            }).size(360f, 64f).row();
+            c.table(row -> {
+                row.button("Continue run", Icon.play, () -> {
+                    menuDialog.hide();
+                    RogueRun.resume();
+                }).size(292f, 64f);
+                row.button(Icon.trash, Styles.defaulti, () -> ui.showConfirm("Delete save", "This run will be lost. Are you sure?", () -> {
+                    RogueRun.abandon();
+                    menuDialog.hide();
+                    showMenu();
+                })).size(64f, 64f).padLeft(4f).tooltip("Delete this save");
+            }).row();
         }
         Runnable start = () -> {
             menuDialog.hide();
             Difficulty difficulty = Structs.find(Difficulty.all, d -> d.name().equals(picked[0]));
-            RogueRun.startNew(difficulty == null ? Difficulty.eradication : difficulty);
+            RogueRun.startNew(difficulty == null ? Difficulty.eradication : difficulty, heat[0]);
         };
-        c.button("Start", Icon.play, () -> {
+        c.button("New Game", Icon.play, () -> {
             if(RogueRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", start);
             else start.run();
         }).size(360f, 64f).row();
-        if(RogueRun.exists()){
-            c.button("Abandon run", Icon.trash, () -> ui.showConfirm("Abandon run", "This run will be lost. Are you sure?", () -> {
-                RogueRun.abandon();
-                menuDialog.hide();
-                showMenu();
-            })).size(360f, 50f).row();
-        }
 
-        c.button("Database", Icon.book, this::showDatabase).size(360f, 50f).row();
+        c.button("Info & Database", Icon.book, this::showDatabase).size(360f, 50f).row();
 
         c.check("Admin tools", Core.settings.getBool(adminKey, false), v -> Core.settings.put(adminKey, v)).padTop(10f).row();
 
@@ -146,19 +147,24 @@ public class RogueUI{
         menuDialog.show();
     }
 
-    static String difficultyName(String name){
+    static final String[] difficultyColors = {"7ce07c", "b8e07c", "ffd37f", "ff9a4f", "f25555"};
+
+    //greener is easier, redder is harder, and the cursed levels past Eradication are purple like their curses
+    static String coloredDifficulty(String name, int heat){
+        if(heat > 0) return "[#" + curseColor + "]" + Difficulty.eradication.localized() + " +" + heat + "[]";
         Difficulty difficulty = Structs.find(Difficulty.all, d -> d.name().equals(name));
-        return (difficulty == null ? Difficulty.eradication : difficulty).localized();
+        if(difficulty == null) difficulty = Difficulty.eradication;
+        return "[#" + difficultyColors[Math.min(difficulty.ordinal(), difficultyColors.length - 1)] + "]" + difficulty.localized() + "[]";
     }
 
     public void showDatabase(){
-        BaseDialog dialog = new BaseDialog("Database");
+        BaseDialog dialog = new BaseDialog("Info & Database");
         Seq<BaseTurret> turrets = new Seq<>();
         for(Block block : Weapons.steps.keys()){
             if(block instanceof BaseTurret turret) turrets.add(turret);
         }
         turrets.sort(t -> Weapons.intro.containsKey(t) ? 1 : 0);
-        boolean[] turretTab = {true};
+        int[] tab = {0};
         BaseTurret[] shown = {turrets.isEmpty() ? null : turrets.first()};
 
         Table body = new Table();
@@ -166,7 +172,9 @@ public class RogueUI{
         fill[0] = () -> {
             body.clear();
             body.top();
-            if(turretTab[0]){
+            if(tab[0] == 0){
+                body.pane(Styles.noBarPane, this::infoPage).width(900f).growY().top();
+            }else if(tab[0] == 1){
                 body.pane(Styles.noBarPane, side -> {
                     side.top().defaults().size(240f, 50f).padBottom(2f);
                     for(BaseTurret turret : turrets){
@@ -181,21 +189,23 @@ public class RogueUI{
                     }
                 }).width(250f).growY().top().padRight(12f);
                 body.pane(Styles.noBarPane, detail -> turretDetail(detail, shown[0])).width(640f).growY().top();
-            }else{
+            }else if(tab[0] == 2){
                 body.pane(Styles.noBarPane, this::passiveList).width(900f).growY().top();
+            }else{
+                body.pane(Styles.noBarPane, this::curseList).width(900f).growY().top();
             }
         };
 
         Table c = dialog.cont;
         c.table(tabs -> {
-            tabs.button("Turrets", Styles.togglet, () -> {
-                turretTab[0] = true;
-                fill[0].run();
-            }).checked(b -> turretTab[0]).size(200f, 50f).pad(2f);
-            tabs.button("Passives", Styles.togglet, () -> {
-                turretTab[0] = false;
-                fill[0].run();
-            }).checked(b -> !turretTab[0]).size(200f, 50f).pad(2f);
+            String[] names = {"Info", "Turrets", "Passives", "Curses"};
+            for(int i = 0; i < names.length; i++){
+                int index = i;
+                tabs.button(names[i], Styles.togglet, () -> {
+                    tab[0] = index;
+                    fill[0].run();
+                }).checked(b -> tab[0] == index).size(200f, 50f).pad(2f);
+            }
         }).padBottom(10f).row();
         c.add(body).grow();
         fill[0].run();
@@ -211,6 +221,19 @@ public class RogueUI{
         if(menu != null && menu.isShown()){
             menu.hide(null);
             dialog.hidden(() -> menu.show(Core.scene, null));
+        }
+    }
+
+    void infoPage(Table t){
+        t.top().left().defaults().left().padBottom(8f);
+        t.add("How to play").color(Pal.accent).row();
+        for(String line : new String[]{
+            "Survive " + Arena.lastWave + " waves on a random map. Enemies chase you from every side.",
+            "Kill enemies and pick up their gems to level up.",
+            "Turrets orbit you and fire with you. They have been reworked and balanced.",
+            "Up to " + Survivor.maxPassives + " passives boost you."
+        }){
+            t.add("[accent]-[] " + line).wrap().width(860f).row();
         }
     }
 
@@ -246,6 +269,20 @@ public class RogueUI{
         if(icon != null) rows.image(icon.uiIcon).size(28f);
         else rows.add().size(28f);
         rows.add(text).wrap().width(520f).padLeft(6f).row();
+    }
+
+    void curseList(Table t){
+        t.top().left();
+        t.add("Curses make the enemy stronger. They only come with " + Difficulty.eradication.localized() + " +1 to +4: when the run starts, a few are picked at random, and higher levels get more and harsher ones, never more than " + Curses.maxRolled + ". Each curse is worth points by how harsh it is. Your curses show under the level bar.").wrap().width(860f).color(Color.lightGray).left().padBottom(10f).row();
+        t.table(rows -> {
+            rows.left().defaults().left().pad(4f);
+            for(Curses.Curse curse : Curses.all){
+                rows.image(curse.icon()).size(40f);
+                rows.add(curse.name).color(curseColor).width(220f).padLeft(6f);
+                rows.add(curse.cost + (curse.cost == 1 ? " point" : " points")).color(Color.lightGray).width(90f);
+                rows.add(curse.description).wrap().width(480f).row();
+            }
+        }).left();
     }
 
     void passiveList(Table t){
@@ -580,6 +617,23 @@ public class RogueUI{
         panel.left();
         panel.defaults().growX();
         panel.add(new Bar(() -> run() == null ? "" : RogueRun.captured() ? "Sector captured" : "Level " + (run().level + 1), () -> Pal.accent, () -> run() == null ? 0f : RogueRun.captured() ? 1f : run().xpProgress())).height(24f).pad(4f).row();
+        Table cursed = new Table();
+        String[] lastCurses = {""};
+        cursed.update(() -> {
+            RogueRun run = run();
+            String key = run == null ? "" : run.curses.toString();
+            if(key.equals(lastCurses[0])) return;
+            lastCurses[0] = key;
+            cursed.clear();
+            cursed.left();
+            if(run == null || run.curses.isEmpty()) return;
+            cursed.add("[#" + curseColor + "]Curses").padRight(6f);
+            for(Curses.Curse curse : run.curses){
+                cursed.image(curse.icon()).size(28f).pad(2f).tooltip("[#" + curseColor + "]" + curse.name + "[]\n[lightgray]" + curse.description);
+            }
+        });
+        panel.add(cursed).left().pad(2f);
+        panel.row();
         Table admin = new Table();
         boolean[] shown = {false};
         admin.update(() -> {

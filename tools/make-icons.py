@@ -16,6 +16,9 @@ SLATE, SLATE_D, SLATE_L = hexc("7274a0"), hexc("4a4665"), hexc("a0a1b8")
 PEACH, LIGHT, OCHRE, COPPER = hexc("ffdfbc"), hexc("eff7ff"), hexc("ca9a5a"), hexc("a46f48")
 PURPLE, DPURPLE, VIOLET, PLUM = hexc("924e94"), hexc("513678"), hexc("a27ce5"), hexc("4a3972")
 
+#curses are drawn with the reds and then shown in purple, the curse color
+CURSE_TONES = {RED: VIOLET, MUTED_RED: PURPLE, BRICK: DPURPLE}
+
 X = np.arange(SIZE)[None, :]
 Y = np.arange(SIZE)[:, None]
 
@@ -311,16 +314,16 @@ def shield_towers():
     ]
 
 
-def conquest():
-    base = poly([(4, 64), (4, 44), (12, 36), (40, 36), (48, 44), (48, 64)])
+def ambush():
+    left = poly([(0, 6), (12, 6), (30, 24), (30, 30), (12, 48), (0, 48)])
+    right = poly([(56, 20), (64, 20), (64, 62), (54, 62), (36, 44), (36, 40), (54, 22)])
     return [
-        (base & (X < 26), GRAY_L),
-        (base & (X >= 26), GRAY),
-        (poly([(6, 40), (24, 22), (32, 30), (14, 48)]), DARK),
-        (poly([(36, 40), (36, 0), (44, 0), (44, 40)]), DARK),
-        (poly([(44, 2), (64, 2), (64, 14), (56, 22), (64, 30), (64, 34), (44, 34)]) & (Y < 18), RED),
-        (poly([(44, 2), (64, 2), (64, 14), (56, 22), (64, 30), (64, 34), (44, 34)]) & (Y >= 18), MUTED_RED),
-        (diamond(52, 12, 4), PEACH),
+        (poly([(0, 64), (0, 54), (10, 54), (20, 64)]), GRAY),
+        (left & (Y < 27), RED),
+        (left & (Y >= 27), MUTED_RED),
+        (right & (X < 52), MUTED_RED),
+        (right & (X >= 52), BRICK),
+        (diamond(33, 36, 4), PEACH),
     ]
 
 
@@ -456,9 +459,9 @@ if __name__ == "__main__":
         ("avenger", avenger), ("inspiration", inspiration), ("evasive-maneuvers", evasive_maneuvers),
         ("transmutation", transmutation), ("aggressive-deployment", aggressive_deployment),
         ("hungry-mechs", hungry_mechs), ("mech-virus", mech_virus), ("overshields", overshields), ("armored-swarms", armored_swarms),
-        ("leadership", leadership), ("shield-towers", shield_towers), ("conquest", conquest),
+        ("leadership", leadership), ("shield-towers", shield_towers), ("ambush", ambush),
     ]:
-        icon("curses", name, fn())
+        icon("curses", name, [(mask, CURSE_TONES.get(color, color)) for mask, color in fn()])
 
     icon("pickups", "magnet", magnet())
 

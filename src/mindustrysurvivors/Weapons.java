@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.func.*;
 import arc.struct.*;
@@ -18,6 +18,7 @@ public class Weapons{
     public static final ObjectFloatMap<Block> niche = new ObjectFloatMap<>();
     public static final OrderedMap<Block, Seq<Step>> steps = new OrderedMap<>();
     public static final ObjectMap<Block, String> intro = new ObjectMap<>();
+    static final ObjectMap<Block, UnlockableContent> startAmmo = new ObjectMap<>();
 
     public static class Spec{
         public @Nullable UnlockableContent ammo;
@@ -53,6 +54,7 @@ public class Weapons{
     }
 
     public static @Nullable BulletType ammo(BaseTurret turret, @Nullable UnlockableContent item){
+        if(item == null) item = firstAmmo(turret);
         if(turret instanceof ItemTurret it && it.ammoTypes.size > 0) return item instanceof Item i && it.ammoTypes.containsKey(i) ? it.ammoTypes.get(i) : it.ammoTypes.values().toSeq().first();
         if(turret instanceof LiquidTurret lt && lt.ammoTypes.size > 0) return item instanceof Liquid l && lt.ammoTypes.containsKey(l) ? lt.ammoTypes.get(l) : lt.ammoTypes.values().toSeq().first();
         if(turret instanceof PowerTurret power) return power.shootType;
@@ -61,6 +63,9 @@ public class Weapons{
     }
 
     public static @Nullable UnlockableContent firstAmmo(BaseTurret turret){
+        UnlockableContent start = startAmmo.get(turret);
+        if(turret instanceof ItemTurret it && start instanceof Item i && it.ammoTypes.containsKey(i)) return start;
+        if(turret instanceof LiquidTurret lt && start instanceof Liquid l && lt.ammoTypes.containsKey(l)) return start;
         if(turret instanceof ItemTurret it && it.ammoTypes.size > 0) return it.ammoTypes.keys().toSeq().first();
         if(turret instanceof LiquidTurret lt && lt.ammoTypes.size > 0) return lt.ammoTypes.keys().toSeq().first();
         return null;
@@ -97,8 +102,11 @@ public class Weapons{
         return (gameDps(turret) > 0f ? gameDps(turret) * balance(turret) : niche.get(turret, 0f)) * globalDamage * globalFireRate;
     }
 
-    static BulletType fragPiece(){
-        return ((ItemTurret)Blocks.ripple).ammoTypes.get(Items.plastanium).fragBullet;
+    static @Nullable BulletType fragPiece(){
+        BulletType plast = ((ItemTurret)Blocks.ripple).ammoTypes.get(Items.plastanium);
+        if(plast != null && plast.fragBullet != null) return plast.fragBullet;
+        BulletType any = ((ItemTurret)Blocks.ripple).ammoTypes.values().toSeq().find(b -> b.fragBullet != null);
+        return any == null ? null : any.fragBullet;
     }
 
     public static BulletType make(Turret turret, Spec s){
@@ -135,7 +143,7 @@ public class Weapons{
         b.homingPower += s.homing;
         b.knockback = (b.knockback + s.knock) * s.force;
         if(b instanceof LiquidBulletType liquid) liquid.puddleSize *= s.puddle;
-        if(s.frag > 0){
+        if(s.frag > 0 && (b.fragBullet != null || fragPiece() != null)){
             if(b.fragBullet == null){
                 b.fragBullet = fragPiece().copy();
                 b.fragBullet.damage *= dmg;
@@ -223,6 +231,11 @@ public class Weapons{
     }
 
     public static void load(){
+        //other mods can replace a turret's whole ammo list, so each turret's starting ammo is named here instead of taken from the list
+        startAmmo.putAll(Blocks.duo, Items.copper, Blocks.scatter, Items.scrap, Blocks.scorch, Items.coal, Blocks.hail, Items.graphite,
+            Blocks.wave, Liquids.water, Blocks.swarmer, Items.blastCompound, Blocks.salvo, Items.copper, Blocks.tsunami, Liquids.water,
+            Blocks.fuse, Items.titanium, Blocks.ripple, Items.graphite, Blocks.cyclone, Items.metaglass, Blocks.foreshadow, Items.surgeAlloy,
+            Blocks.spectre, Items.graphite);
         define(Blocks.wave, 40f,
             streams(1),
             loads(Liquids.oil, "tars enemies, slowing them and making fire burn them much harder"),

@@ -18,9 +18,9 @@ Press **Mindustry Survivors** in the main menu and start a new run. A run is one
 - Pick a difficulty on the Mindustry Survivors page before starting: Casual, Easy, Normal, Hard or Eradication. They send 25%, 38%, 50%, 75% or 100% of the enemies. Gems are worth more on lower difficulties, so you level up just as often.
 - Win when all 50 waves are dead. Quitting saves the run; press **Continue run** to go on.
 
-### Relics and curses
+### Curses
 
-Relics and curses are switched off for now. Curses will come back as random rules rolled for each run.
+Past Eradication there are four more difficulties, Eradication +1 to +4. Each one rolls random curses when the run starts: harsh rules for the enemy, worth 1 to 4 points each. +1 and +2 get at least 2 curses, +3 and +4 at least 3, never more than 4, within a budget of 4, 6, 8 and 11 points. Your curses show under the level bar; hover one to read it. `./report.sh` lists every curse with its points.
 
 The icons are drawn by `tools/make-icons.py` (needs Python with Pillow and numpy).
 
@@ -30,7 +30,7 @@ The quickest way: run `./play.sh`. It builds the mod, puts it in the game's mods
 
 To do it by hand:
 
-1. Run `./build.sh` (needs Java 17 or newer). It creates `build/Roguedustry.jar`.
+1. Run `./build.sh` (needs Java 17 or newer). It creates `build/MindustrySurvivors.jar`.
 2. Copy that file into your Mindustry mods folder:
    - Standalone: `%APPDATA%\Mindustry\mods\`
    - Steam: `<Steam>\steamapps\common\Mindustry\saves\mods\`

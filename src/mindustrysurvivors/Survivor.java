@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.graphics.*;
@@ -26,7 +26,7 @@ import static mindustry.Vars.*;
 
 public class Survivor{
     public static final int maxWeapons = 6, maxPassives = 6, weaponLevels = Weapons.maxLevel, maxGems = 400;
-    public static final String startTag = "roguedustry-start";
+    public static final String startTag = "mindustry-survivors-start";
     public static final float xpRate = 1.25f;
     static final float baseMagnet = 5f * tilesize, orbitSpeed = 0.6f, healAmount = 0.3f, turretSize = 12f;
     static Item[] gemItems;
@@ -54,7 +54,7 @@ public class Survivor{
     static @Nullable Seq<Weapon> ownWeapons;
     static boolean spawned;
     static float orbit;
-    static final float[] aim = new float[maxWeapons], pointReload = new float[maxWeapons];
+    static final float[] aim = new float[maxWeapons], pointReload = new float[maxWeapons], jammed = new float[maxWeapons];
     static int shotDown;
     static final Seq<Unit>[] held = new Seq[maxWeapons];
     static{
@@ -196,7 +196,7 @@ public class Survivor{
             w.rotateSpeed = 100000f;
             w.recoilTime = 10f;
             w.init();
-            w.region = w.heatRegion = w.cellRegion = w.outlineRegion = Core.atlas.find("roguedustry-none");
+            w.region = w.heatRegion = w.cellRegion = w.outlineRegion = Core.atlas.find("mindustry-survivors-none");
             return w;
         }
         spec.speed += 0.1f * level(velocity);
@@ -230,7 +230,7 @@ public class Survivor{
         w.shoot = t.shoot.copy();
         w.shoot.shots += spec.shots + Math.min(level(amount), 2);
         w.init();
-        w.region = w.heatRegion = w.cellRegion = w.outlineRegion = Core.atlas.find("roguedustry-none");
+        w.region = w.heatRegion = w.cellRegion = w.outlineRegion = Core.atlas.find("mindustry-survivors-none");
         return w;
     }
 
@@ -504,7 +504,7 @@ public class Survivor{
             Fill.light(x, y, 20, 26f * pulse, Tmp.c1.set(magnetGlow).a(0.75f * pulse), Tmp.c2.set(magnetGlow).a(0f));
             Draw.color();
             float size = 15f + Mathf.absin(Time.time, 10f, 2f);
-            Draw.rect(Core.atlas.find("roguedustry-magnet"), x, y, size, size);
+            Draw.rect(Core.atlas.find("mindustry-survivors-magnet"), x, y, size, size);
         }
         for(int i = 0; i < gemValue.size; i++){
             float x = gemX.get(i), y = gemY.get(i) + Mathf.absin(Time.time + i * 11f, 7f, 1f);
@@ -526,6 +526,7 @@ public class Survivor{
         float range = gun.turret.range * spec.range * Weapons.globalRange;
         int beams = 1 + spec.shots + Math.min(level(amount), 2);
         held[i].clear();
+        if(Time.time < jammed[i]) return;
 
         if(gun.turret instanceof TractorBeamTurret tractor){
             if(!me.isShooting()) return;
@@ -568,6 +569,16 @@ public class Survivor{
 
     static float auraRadius(){
         return (8f + 1.5f * (level(aura) - 1)) * tilesize;
+    }
+
+    //an orbiting turret picked at random stops firing for a while
+    public static void jam(float ticks){
+        Unit me = player.unit();
+        if(ownedGuns.isEmpty() || me == null || me.dead) return;
+        int own = ownWeapons == null ? 0 : ownWeapons.size, i = Mathf.random(ownedGuns.size - 1);
+        jammed[i] = Time.time + ticks;
+        if(own + i < me.mounts.length) me.mounts[own + i].reload = Math.max(me.mounts[own + i].reload, ticks);
+        Fx.sapExplosion.at(me.x, me.y);
     }
 
     public static boolean dodges(){
@@ -639,7 +650,7 @@ public class Survivor{
     }
 
     static void register(){
-        SaveVersion.addCustomChunk("roguedustry-survivor", new SaveFileReader.CustomChunk(){
+        SaveVersion.addCustomChunk("mindustry-survivors-survivor", new SaveFileReader.CustomChunk(){
             @Override
             public boolean shouldWrite(){
                 return Arena.active();

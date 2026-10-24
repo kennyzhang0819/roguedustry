@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.math.*;
 import arc.math.geom.*;
@@ -153,14 +153,14 @@ public class MapGen{
             wet[i] = water[i] > 0.3f + (Simplex.noise2d(seed + 31, 2, 0.5, 1f / (12f * k), x, y) - 0.5f) * 0.4f;
         }
 
-        int mountains = rnd.chance(0.75) ? rnd.random(1, 3) : 0;
+        int mountains = rnd.random(1, 3);
         for(int m = 0, tries = 0; m < mountains && tries < 30; tries++){
             float x = rnd.random(30f, size - 30f), y = rnd.random(30f, size - 30f), radius = rnd.random(22f, 50f) * k;
             if(Mathf.dst(x, y, cx, cy) < radius + 18f * k) continue;
             blob(mount, x, y, radius, seed + 300 + m);
             m++;
         }
-        float hills = mountains > 0 ? rnd.random(0.03f, 0.1f) : rnd.random(0.02f, 0.07f), hillScale = rnd.random(28f, 55f) * k, warp = rnd.random(0f, 20f) * k;
+        float hills = rnd.random(0.05f, 0.12f), hillScale = rnd.random(28f, 55f) * k, warp = rnd.random(0f, 20f) * k;
         float[] hv = new float[n];
         for(int y = 0; y < size; y++){
             for(int x = 0; x < size; x++){
@@ -194,7 +194,7 @@ public class MapGen{
             }
             if(rock[i]) rocks++;
         }
-        if(rocks > n * 0.45f) return null;
+        if(rocks > n * 0.45f || rocks < n * 0.12f) return null;
 
         byte[] depth = new byte[n];
         int[] fromShore = distance(wet);

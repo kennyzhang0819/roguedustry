@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.struct.*;
@@ -48,7 +48,7 @@ public class Wireless{
     }
 
     public static void register(){
-        SaveVersion.addCustomChunk("roguedustry-wireless", new SaveFileReader.CustomChunk(){
+        SaveVersion.addCustomChunk("mindustry-survivors-wireless", new SaveFileReader.CustomChunk(){
             @Override
             public boolean shouldWrite(){
                 return RogueRun.wirelessRun();

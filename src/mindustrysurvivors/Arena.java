@@ -1,8 +1,9 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.files.*;
 import arc.math.*;
+import arc.math.geom.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
@@ -22,7 +23,7 @@ import mindustry.world.meta.*;
 import static mindustry.Vars.*;
 
 public class Arena{
-    public static final String tag = "roguedustry-run";
+    public static final String tag = "mindustry-survivors-run";
     public static final int lastWave = 50;
     static final float waveGap = 18.5f, firstWave = 3f, releaseTime = 3.5f;
     public static final float waveScale = 0.2f, enemyDamagePerWave = 0.04f;
@@ -37,7 +38,7 @@ public class Arena{
     static final Seq<Release> releasing = new Seq<>();
     public static final ObjectIntMap<Block> placed = new ObjectIntMap<>();
     static float recountTimer;
-    public static final String difficultyKey = "roguedustry-difficulty";
+    public static final String difficultyKey = "mindustry-survivors-difficulty";
     public static StatusEffect coreBoost;
     static boolean won;
 
@@ -198,7 +199,7 @@ public class Arena{
     }
 
     public static Fi saveFile(){
-        return dataDirectory.child("roguedustry").child("run." + saveExtension);
+        return dataDirectory.child("mindustry-survivors").child("run." + saveExtension);
     }
 
     public static boolean saved(){
@@ -391,13 +392,24 @@ public class Arena{
         }
     }
 
+    static @Nullable Tile ambushTile(boolean naval){
+        Position goal = Chase.goal();
+        if(goal == null) return null;
+        for(int tries = 0; tries < 10; tries++){
+            Tmp.v1.rnd(Mathf.random(10f, 16f) * tilesize).add(goal.getX(), goal.getY());
+            Tile tile = world.tileWorld(Tmp.v1.x, Tmp.v1.y);
+            if(tile != null && !tile.solid() && tile.floor().isLiquid == naval) return tile;
+        }
+        return null;
+    }
+
     public static @Nullable Tile spawnTile(boolean naval){
         IntSeq list = naval && !waterSpawns.isEmpty() ? waterSpawns : groundSpawns;
         return list.isEmpty() ? null : world.tile(list.random());
     }
 
     static void spawn(UnitType type, boolean naval){
-        Tile tile = null;
+        Tile tile = Curses.on(Curses.ambush) && Mathf.chance(Curses.ambushChance) ? ambushTile(naval) : null;
         for(int tries = 0; tries < 8 && (tile == null || tile.build != null); tries++) tile = spawnTile(naval);
         if(tile == null || tile.build != null) return;
         Unit unit = type.create(state.rules.waveTeam);

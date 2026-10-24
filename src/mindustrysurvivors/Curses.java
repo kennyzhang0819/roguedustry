@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.graphics.*;
@@ -35,52 +35,55 @@ public class Curses{
 
     public static class Curse{
         public final String id, name, description;
+        public final int cost;
 
-        Curse(String id, String name, String description){
+        Curse(String id, String name, int cost, String description){
             this.id = id;
             this.name = name;
+            this.cost = cost;
             this.description = description;
         }
 
         public TextureRegion icon(){
-            return Core.atlas.find("roguedustry-" + id);
+            return Core.atlas.find("mindustry-survivors-" + id);
         }
     }
 
     public static final Curse
-    speedFreaks = new Curse("speed-freaks", "Speedy", "Enemy units move twice as fast and can't be slowed."),
-    lifeLeech = new Curse("life-leech", "Bloodthirst", "Enemies heal from the damage they deal."),
-    longRange = new Curse("long-range", "Far Sight", "Enemies shoot 50% farther."),
-    justDie = new Curse("just-die", "Reconstruction", "Enemy units revive once."),
-    selfDestruction = new Curse("self-destruction", "Volatile", "Enemy units explode when they die."),
-    mutuallyAssured = new Curse("mutually-assured-destruction", "Dead Man's Switch", "Tier 4 and Tier 5 enemies blow up after they die."),
-    alienIncubation = new Curse("alien-incubation", "Mitosis", "Enemy units spawn Tier 1 units when they die."),
-    barrier = new Curse("barrier", "Reactive Plating", "Enemy units get a short shield when first hit."),
-    avenger = new Curse("avenger", "Grudge", "Each enemy death makes nearby enemies stronger."),
-    inspiration = new Curse("inspiration", "Warlord", "Tier 4 and Tier 5 enemies make nearby enemies stronger."),
-    evasiveManeuvers = new Curse("evasive-maneuvers", "Blink", "Damaged enemy units teleport forward."),
-    transmutation = new Curse("transmutation", "Evolution", "Enemy units that hit you may turn into the next tier."),
-    aggressiveDeployment = new Curse("aggressive-deployment", "Reinforcements", "Extra enemies arrive between waves."),
-    hungryMechs = new Curse("hungry-mechs", "Hungry Mechs", "Some enemy units eat their allies and grow huge."),
-    mechVirus = new Curse("mech-virus", "Mech Virus", "Killing an infected enemy infects your nearest turret, which then wastes away."),
-    overshields = new Curse("overshields", "Overshields", "Enemy shields are 5 times as strong."),
-    armoredSwarms = new Curse("armored-swarms", "Armored Swarms", "Tier 1 to 3 enemy units get 5 armor."),
-    leadership = new Curse("leadership", "Leadership", "Enemies near a Tier 4 or Tier 5 enemy take at most 10 damage from any one hit."),
-    shieldTowers = new Curse("shield-towers", "Shield Towers", "Enemy shield towers keep appearing along the enemy's path."),
-    conquest = new Curse("conquest", "Conquest", "Turrets the enemy destroys come back on the enemy's side.");
+    speedFreaks = new Curse("speed-freaks", "Speedy", 4, "Enemy units move twice as fast and can't be slowed."),
+    lifeLeech = new Curse("life-leech", "Bloodthirst", 2, "Enemies heal from the damage they deal."),
+    longRange = new Curse("long-range", "Far Sight", 2, "Enemies shoot 50% farther."),
+    justDie = new Curse("just-die", "Reconstruction", 3, "Enemy units revive once."),
+    selfDestruction = new Curse("self-destruction", "Volatile", 2, "Enemy units explode when they die."),
+    mutuallyAssured = new Curse("mutually-assured-destruction", "Dead Man's Switch", 1, "Tier 4 and Tier 5 enemies blow up after they die."),
+    alienIncubation = new Curse("alien-incubation", "Mitosis", 3, "Enemy units spawn Tier 1 units when they die."),
+    barrier = new Curse("barrier", "Reactive Plating", 2, "Enemy units get a short shield when first hit."),
+    avenger = new Curse("avenger", "Grudge", 2, "Each enemy death makes nearby enemies stronger."),
+    inspiration = new Curse("inspiration", "Warlord", 1, "Tier 4 and Tier 5 enemies make nearby enemies stronger."),
+    evasiveManeuvers = new Curse("evasive-maneuvers", "Blink", 2, "Damaged enemy units teleport toward you."),
+    transmutation = new Curse("transmutation", "Evolution", 2, "Enemy units that hit you may turn into the next tier."),
+    aggressiveDeployment = new Curse("aggressive-deployment", "Reinforcements", 3, "Extra enemies arrive between waves."),
+    hungryMechs = new Curse("hungry-mechs", "Hungry Mechs", 2, "Some enemy units eat their allies and grow huge."),
+    mechVirus = new Curse("mech-virus", "Mech Virus", 2, "Killing an infected enemy jams one of your turrets for 5 seconds."),
+    overshields = new Curse("overshields", "Overshields", 1, "Enemy shields are 5 times as strong."),
+    armoredSwarms = new Curse("armored-swarms", "Armored Swarms", 2, "Tier 1 to 3 enemy units get 5 armor."),
+    leadership = new Curse("leadership", "Leadership", 2, "Enemies near a Tier 4 or Tier 5 enemy take at most 10 damage from any one hit."),
+    shieldTowers = new Curse("shield-towers", "Shield Towers", 2, "Enemy shield towers keep appearing near enemy ground units."),
+    ambush = new Curse("ambush", "Ambush", 3, "Some enemies arrive right next to you instead of at the edge.");
 
     public static final Seq<Curse> all = Seq.with(
         speedFreaks, lifeLeech, longRange, justDie,
         selfDestruction, mutuallyAssured, alienIncubation,
         barrier, avenger, inspiration, evasiveManeuvers, transmutation, aggressiveDeployment,
-        hungryMechs, mechVirus, overshields, armoredSwarms, leadership, shieldTowers, conquest
+        hungryMechs, mechVirus, overshields, armoredSwarms, leadership, shieldTowers, ambush
     );
 
     static final float rangeMultiplier = 1.5f, leech = 0.5f, reviveDelay = 1f, transmuteChance = 0.002f;
     static final float hungryChance = 0.05f, hungryReach = 6f * 8f, virusChance = 0.01f, virusDrain = 0.05f, virusJump = 5f * 8f,
         overshieldScale = 5f, leadershipCap = 10f, leadershipRange = 15f * 8f, bigShield = 1e7f,
         towerPeriod = 60f * 22.5f, towerHealth = 2000f, towerDome = 1000f, towerGrowth = 1.1f, conquestHealth = 0.6f;
-    static final float armoredArmor = 5f;
+    static final float armoredArmor = 5f, virusJam = 60f * 5f, ambushChance = 0.15f;
+    public static final int maxRolled = 4;
     static final int hungryMaxMeals = 20, towerMax = 20;
     static final int maxAvenger = 5;
 
@@ -195,6 +198,30 @@ public class Curses{
         return all.find(m -> m.id.equals(id));
     }
 
+    //picks random curses that fit the budget, at least min of them and never more than maxRolled; tries again until the budget is nearly used
+    public static Seq<Curse> roll(int budget, int min, Rand rand){
+        Seq<Curse> best = new Seq<>();
+        int bestSpent = -1;
+        for(int attempt = 0; attempt < 200; attempt++){
+            Seq<Curse> pool = all.copy(), picked = new Seq<>();
+            pool.shuffle();
+            int spent = 0;
+            for(Curse c : pool){
+                if(picked.size >= maxRolled) break;
+                if(spent + c.cost <= budget){
+                    picked.add(c);
+                    spent += c.cost;
+                }
+            }
+            if(picked.size >= min && spent > bestSpent){
+                best = picked;
+                bestSpent = spent;
+                if(spent >= budget - 1) break;
+            }
+        }
+        return best;
+    }
+
     public static Seq<Curse> offer(Seq<Curse> owned, Rand rand){
         Seq<Curse> pool = all.select(m -> !owned.contains(m)), out = new Seq<>();
         while(out.size < 3 && pool.any()){
@@ -209,8 +236,6 @@ public class Curses{
             for(Unit unit : state.rules.waveTeam.data().units) unit.unapply(speedEffect);
         }
         if(m == shieldTowers) removeAll(towers);
-        if(m == conquest) removeAll(conquered);
-        if(m == mechVirus) infected.clear();
         if(m == leadership){
             for(Unit unit : state.rules.waveTeam.data().units) unguard(unit);
             guarded.clear();
@@ -273,23 +298,6 @@ public class Curses{
             }
         }
 
-        if(on(mechVirus) && (virusTimer += Time.delta) >= 60f){
-            virusTimer = 0f;
-            IntSeq list = infected.iterator().toArray();
-            for(int i = 0; i < list.size; i++){
-                int pos = list.get(i);
-                Building b = world.build(pos);
-                if(b == null || b.team != state.rules.defaultTeam || !(b instanceof TurretBuild)){
-                    infected.remove(pos);
-                    Tile tile = world.tile(pos);
-                    if(tile != null) infectNear(tile.worldx(), tile.worldy());
-                    continue;
-                }
-                Fx.sapped.at(b.x, b.y);
-                b.damage(b.maxHealth * virusDrain);
-            }
-        }
-
         if(on(overshields)){
             if((spawnTimer += Time.delta) > 600f){
                 spawnTimer = 0f;
@@ -328,7 +336,6 @@ public class Curses{
         }
 
         supply(towers);
-        supply(conquered);
         IntSeq list = towers.iterator().toArray();
         for(int i = 0; i < list.size; i++){
             int pos = list.get(i);
@@ -417,28 +424,7 @@ public class Curses{
     }
 
     static void infectNear(float x, float y){
-        Building best = null;
-        for(Building b : state.rules.defaultTeam.data().buildings){
-            if(b instanceof TurretBuild && !infected.contains(b.pos()) && b.within(x, y, virusJump + b.hitSize() / 2f) && (best == null || b.dst(x, y) < best.dst(x, y))) best = b;
-        }
-        if(best == null) return;
-        infected.add(best.pos());
-        Fx.sapExplosion.at(best.x, best.y);
-    }
-
-    static void conquer(Building build){
-        if(!on(conquest) || !(build instanceof TurretBuild) || build.team != state.rules.defaultTeam || TurretMods.willRebuild(build)) return;
-        Tile tile = build.tile;
-        Block block = build.block;
-        int rotation = build.rotation;
-        Core.app.post(() -> {
-            if(!RogueRun.active() || tile.build != null) return;
-            tile.setNet(block, state.rules.waveTeam, rotation);
-            if(tile.build == null) return;
-            tile.build.health = tile.build.maxHealth * conquestHealth;
-            conquered.add(tile.build.pos());
-            Fx.spawnShockwave.at(tile.build.x, tile.build.y, 30f);
-        });
+        Survivor.jam(virusJam);
     }
 
     static boolean on(Curse m){
@@ -573,7 +559,7 @@ public class Curses{
         int count = 0;
         for(int n : Arena.waves[Math.min(state.wave - 2, Arena.lastWave - 1)]) count += n == 0 ? 0 : Math.max(1, Math.round(n * 0.5f));
         Arena.release(state.wave - 1, 0.5f);
-        if(count > 0 && !headless) ui.showInfoToast("[scarlet]Aggressive Deployment:[] " + count + " extra enemies incoming", 4f);
+        if(count > 0 && !headless) ui.showInfoToast("[#b07ae8]Reinforcements:[] " + count + " extra enemies incoming", 4f);
     }
 
     static void onWave(){
@@ -655,15 +641,15 @@ public class Curses{
         if(on(evasiveManeuvers) && unit.isValid() && Time.time - lastJump.get(unit.id, -9999f) > 60f * 4f){
             lastJump.put(unit.id, Time.time);
             float fromX = unit.x, fromY = unit.y;
+            arc.math.geom.Position goal = Chase.goal();
+            if(goal == null) return;
             if(unit.isFlying()){
-                Building core = state.rules.defaultTeam.core();
-                if(core == null) return;
-                Tmp.v1.set(core).sub(unit).limit(5f * tilesize);
+                Tmp.v1.set(goal.getX(), goal.getY()).sub(unit).limit(5f * tilesize);
                 unit.set(unit.x + Tmp.v1.x, unit.y + Tmp.v1.y);
             }else{
                 Tile tile = unit.tileOn();
                 if(tile == null) return;
-                var field = pathfinder.getField(unit.team, unit.type.flowfieldPathType, Pathfinder.fieldCore);
+                var field = pathfinder.getField(unit.team, unit.type.flowfieldPathType, Chase.field);
                 for(int i = 0; i < 5; i++){
                     Tile next = field.getNextTile(tile);
                     if(next == null || next == tile) break;
@@ -794,10 +780,6 @@ public class Curses{
         });
 
         Events.on(WaveEvent.class, e -> onWave());
-
-        Events.on(BlockDestroyEvent.class, e -> {
-            if(RogueRun.active() && e.tile.build != null) conquer(e.tile.build);
-        });
 
         Events.on(WorldLoadBeginEvent.class, e -> {
             towers.clear();

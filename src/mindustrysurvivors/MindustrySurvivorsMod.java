@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import mindustry.*;
@@ -6,13 +6,13 @@ import mindustry.content.*;
 import mindustry.game.EventType.*;
 import mindustry.mod.*;
 
-public class RoguedustryMod extends Mod{
+public class MindustrySurvivorsMod extends Mod{
     public static final boolean roguelike = true, dev = System.getenv("ROGUE_DEV") != null && !System.getenv("ROGUE_DEV").isEmpty();
 
     public static RogueUI ui;
     public static WirelessUI wirelessUI;
 
-    public RoguedustryMod(){
+    public MindustrySurvivorsMod(){
         RogueRun.registerEvents();
         Curses.registerEvents();
         Wireless.register();

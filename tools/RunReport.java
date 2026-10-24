@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.struct.*;
 import mindustry.*;
@@ -82,9 +82,17 @@ public class RunReport{
         System.out.println(units + " enemies, " + (int)total + " XP in gems. Levels if every gem is picked up: " + levels);
         System.out.println();
         System.out.println("== Curses ==");
-        System.out.println("(each relic brings one at random; they last until the sector is captured)");
+        System.out.println("(rolled at the start of an Eradication +1 to +4 run: budgets 4, 6, 8, 11 points, at least 2, 2, 3, 3 curses, at most 4)");
         for(Curses.Curse m : Curses.all){
-            System.out.printf("%-28s %s%n", m.name, m.description);
+            System.out.printf("%-20s %d  %s%n", m.name, m.cost, m.description);
+        }
+        System.out.println();
+        System.out.println("== Sample curse rolls ==");
+        for(int heat = 1; heat <= RogueRun.maxHeat; heat++){
+            for(int sample = 0; sample < 3; sample++){
+                Seq<Curses.Curse> rolled = Curses.roll(RogueRun.heatBudget(heat), RogueRun.heatMinCurses(heat), new arc.math.Rand(heat * 1000L + sample));
+                System.out.println("Eradication +" + heat + ": " + rolled.map(c -> c.name + " (" + c.cost + ")").toString(", ") + "  = " + rolled.sum(c -> c.cost) + " of " + RogueRun.heatBudget(heat));
+            }
         }
     }
 }

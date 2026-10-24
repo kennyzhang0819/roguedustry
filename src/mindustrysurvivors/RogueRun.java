@@ -1,4 +1,4 @@
-package roguedustry;
+package mindustrysurvivors;
 
 import arc.*;
 import arc.func.*;
@@ -34,7 +34,7 @@ import mindustry.io.*;
 import static mindustry.Vars.*;
 
 public class RogueRun{
-    public static final String saveKey = "roguedustry-run", lastStandTag = "roguedustry-last-stand";
+    public static final String saveKey = "mindustry-survivors-run", lastStandTag = "mindustry-survivors-last-stand";
 
     public static @Nullable RogueRun current;
     static final ObjectMap<TechNode, ItemStack[]> realCosts = new ObjectMap<>();
@@ -48,6 +48,10 @@ public class RogueRun{
     public boolean wireless;
     public int launches, picksTaken;
     public Difficulty difficulty = Difficulty.eradication;
+    //levels past Eradication: each one has a curse budget and a smallest number of curses
+    public int heat;
+    public static final int maxHeat = 4;
+    static final int[] heatBudget = {0, 4, 6, 8, 11}, heatMinCurses = {0, 2, 2, 3, 3};
     public final ObjectIntMap<Rewards.Reward> rewards = new ObjectIntMap<>();
     public final ObjectIntMap<Block> copies = new ObjectIntMap<>();
     public final Seq<Curses.Curse> curses = new Seq<>();
@@ -63,6 +67,14 @@ public class RogueRun{
     float effectTimer, unlockTimer, cleanupTimer;
     final ObjectFloatMap<Block> blockSpeed = new ObjectFloatMap<>(), blockHealth = new ObjectFloatMap<>();
 
+    public static int heatBudget(int heat){
+        return heatBudget[heat];
+    }
+
+    public static int heatMinCurses(int heat){
+        return heatMinCurses[heat];
+    }
+
     public static boolean exists(){
         return Core.settings.has(saveKey) && Arena.saved();
     }
@@ -72,10 +84,15 @@ public class RogueRun{
     }
 
     public static void startNew(Difficulty difficulty){
+        startNew(difficulty, 0);
+    }
+
+    public static void startNew(Difficulty difficulty, int heat){
         Arena.deleteSave();
         RogueRun run = new RogueRun();
         run.id = Math.abs(new Rand().nextLong());
-        run.difficulty = difficulty;
+        run.difficulty = heat > 0 ? Difficulty.eradication : difficulty;
+        run.heat = heat;
         run.save();
         current = run;
         current.applyTweaks();
@@ -280,13 +297,11 @@ public class RogueRun{
         if(!sectorLoaded){
             pendingRelic = relicsOn && relicOffer().any();
             copies.putAll(Arena.startingKit());
+            curses.set(Curses.roll(heatBudget[heat], heatMinCurses[heat], new Rand(id * 7121L)));
+            if(curses.any()) Log.info("[Rogue] Curses: @", curses.map(c -> c.name));
         }
         sectorLoaded = true;
-        if(!relicsOn){
-            pendingRelic = pendingCurse = false;
-            for(Curses.Curse curse : curses) Curses.lifted(curse);
-            curses.clear();
-        }
+        if(!relicsOn) pendingRelic = pendingCurse = false;
         Arena.recount();
         applyTweaks();
         if(!headless) ui.hudfrag.blockfrag.rebuild();
@@ -639,6 +654,7 @@ public class RogueRun{
         out.append("wireless=").append(wireless).append('\n');
         out.append("launches=").append(launches).append('\n');
         out.append("difficulty=").append(difficulty.name()).append('\n');
+        out.append("heat=").append(heat).append('\n');
         Core.settings.put(saveKey, out.toString());
     }
 
@@ -656,6 +672,7 @@ public class RogueRun{
                     case "wireless" -> run.wireless = Boolean.parseBoolean(v);
                     case "launches" -> run.launches = Integer.parseInt(v);
                     case "difficulty" -> run.difficulty = Structs.find(Difficulty.all, d -> d.name().equals(v));
+                    case "heat" -> run.heat = Mathf.clamp(Integer.parseInt(v), 0, maxHeat);
                 }
             }
             return run;
@@ -670,7 +687,7 @@ public class RogueRun{
     }
 
     static void registerEvents(){
-        SaveVersion.addCustomChunk("roguedustry-sector", new SaveFileReader.CustomChunk(){
+        SaveVersion.addCustomChunk("mindustry-survivors-sector", new SaveFileReader.CustomChunk(){
             @Override
             public boolean shouldWrite(){
                 return current != null && Arena.active();
