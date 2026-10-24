@@ -1,6 +1,6 @@
 build/
 libs/
-rogue-shots/
+survivors-shots/
 *.class
 .idea/
 *.iml

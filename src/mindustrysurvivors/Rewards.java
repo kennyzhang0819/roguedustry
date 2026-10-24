@@ -85,7 +85,7 @@ public class Rewards{
 
         public boolean available(){
             if(copyOf != null) return Arena.offered(copyOf);
-            if(blocks.any()) return RogueRun.current != null && blocks.contains(b -> RogueRun.current.copies.get(b, 0) > 0);
+            if(blocks.any()) return SurvivorsRun.current != null && blocks.contains(b -> SurvivorsRun.current.copies.get(b, 0) > 0);
             if(units.any()) return units.contains(UnitType::unlocked);
             return iconContent == null || iconContent.unlocked();
         }

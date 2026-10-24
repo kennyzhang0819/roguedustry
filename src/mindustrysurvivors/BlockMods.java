@@ -54,7 +54,7 @@ public class BlockMods{
     }
 
     static boolean has(Rewards.Reward reward){
-        return RogueRun.active() && RogueRun.current.stacks(reward) > 0;
+        return SurvivorsRun.active() && SurvivorsRun.current.stacks(reward) > 0;
     }
 
     static Team team(){
@@ -469,25 +469,25 @@ public class BlockMods{
 
     static void registerEvents(){
         Events.run(Trigger.update, () -> {
-            if(RogueRun.active() && !state.isPaused()) mirror();
+            if(SurvivorsRun.active() && !state.isPaused()) mirror();
         });
 
         Events.run(Trigger.afterGameUpdate, () -> {
-            if(RogueRun.active() && !state.isPaused()) update();
+            if(SurvivorsRun.active() && !state.isPaused()) update();
         });
 
         Events.on(WorldLoadBeginEvent.class, e -> reset());
 
         Events.on(BuildDamageEvent.class, e -> {
-            if(RogueRun.active() && e.build.team == team() && e.source != null && e.source.team != team()) hit(e.build, e.source);
+            if(SurvivorsRun.active() && e.build.team == team() && e.source != null && e.source.team != team()) hit(e.build, e.source);
         });
 
         Events.on(BlockDestroyEvent.class, e -> {
-            if(RogueRun.active() && e.tile.build != null) destroyed(e.tile.build);
+            if(SurvivorsRun.active() && e.tile.build != null) destroyed(e.tile.build);
         });
 
         Events.on(UnitDamageEvent.class, e -> {
-            if(RogueRun.active() && e.unit.team == state.rules.waveTeam) enemyHit(e.unit);
+            if(SurvivorsRun.active() && e.unit.team == state.rules.waveTeam) enemyHit(e.unit);
         });
     }
 }

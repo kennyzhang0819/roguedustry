@@ -322,7 +322,7 @@ public class Survivor{
     }
 
     public static void take(Choice choice){
-        RogueRun run = RogueRun.current;
+        SurvivorsRun run = SurvivorsRun.current;
         if(run == null || run.pendingModifiers <= 0) return;
         run.pendingModifiers--;
         offer.clear();
@@ -333,7 +333,7 @@ public class Survivor{
             if(me != null && !me.dead) me.heal(me.maxHealth * healAmount);
             if(level(luck) >= 5) maxedBonus += maxedDamage;
         }
-        Log.info("[Rogue] Took '@' (level @)", choice.name(), choice.gun != null ? gunLevel.get(choice.gun, 0) : choice.passive != null ? level(choice.passive) : 0);
+        Log.info("[Survivors] Took '@' (level @)", choice.name(), choice.gun != null ? gunLevel.get(choice.gun, 0) : choice.passive != null ? level(choice.passive) : 0);
     }
 
     public static void drop(Unit unit){
@@ -358,11 +358,11 @@ public class Survivor{
     }
 
     static void addXp(float amount){
-        RogueRun run = RogueRun.current;
+        SurvivorsRun run = SurvivorsRun.current;
         if(run == null) return;
         run.xp += amount * xpRate * (1f + 0.08f * level(growth));
-        while(run.xp >= RogueRun.xpFor(run.level)){
-            run.xp -= RogueRun.xpFor(run.level);
+        while(run.xp >= SurvivorsRun.xpFor(run.level)){
+            run.xp -= SurvivorsRun.xpFor(run.level);
             run.level++;
             run.pendingModifiers++;
             Unit me = player.unit();

@@ -30,7 +30,7 @@ public class WirelessUI{
         popup.visible = false;
         ui.hudGroup.addChild(popup);
         popup.update(() -> {
-            if(shown == null || !shown.isValid() || !RogueRun.wirelessOn()){
+            if(shown == null || !shown.isValid() || !SurvivorsRun.wirelessOn()){
                 hide();
                 return;
             }
@@ -40,7 +40,7 @@ public class WirelessUI{
         });
 
         Events.on(TapEvent.class, e -> {
-            if(e.player != player || !RogueRun.wirelessOn() || control.input.block != null || control.input.isBreaking()) return;
+            if(e.player != player || !SurvivorsRun.wirelessOn() || control.input.block != null || control.input.isBreaking()) return;
             Building b = e.tile.build;
             if(b != null && b.team == player.team() && !b.block.configurable && hasChoices(b)){
                 if(shown == b) hide();
@@ -55,7 +55,7 @@ public class WirelessUI{
             rebuildItems = CoreItemsDisplay.class.getDeclaredMethod("rebuild");
             rebuildItems.setAccessible(true);
         }catch(Throwable e){
-            Log.err("[Rogue] Could not add liquids to the core items list", e);
+            Log.err("[Survivors] Could not add liquids to the core items list", e);
         }
         Events.run(Trigger.update, this::syncLiquids);
     }
@@ -70,7 +70,7 @@ public class WirelessUI{
         if(rebuildItems == null) return;
         CoreItemsDisplay display = ui.hudfrag.coreItems;
         wanted.clear();
-        if(RogueRun.wirelessOn()){
+        if(SurvivorsRun.wirelessOn()){
             for(Liquid l : content.liquids()) if(Wireless.pool.get(l, 0f) >= 1f) wanted.add(l);
         }
         boolean present = marker != null && marker.parent == display;

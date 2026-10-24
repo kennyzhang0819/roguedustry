@@ -77,7 +77,7 @@ public class Profile{
         dir.child("settings.txt").writeString(keys.toString());
         for(Fi file : sectorFiles(saveDirectory)) file.copyTo(dir.child(file.name()));
         Core.settings.put(backupKey, true);
-        Log.info("[Rogue] Backed up your campaign to @", dir.absolutePath());
+        Log.info("[Survivors] Backed up your campaign to @", dir.absolutePath());
     }
 
     public static void switchTo(String profile){
@@ -88,7 +88,7 @@ public class Profile{
         Core.settings.put(activeKey, profile);
         Core.settings.forceSave();
         reload();
-        Log.info("[Rogue] Switched to the @ campaign", profile);
+        Log.info("[Survivors] Switched to the @ campaign", profile);
     }
 
     public static void deleteRun(){
@@ -112,7 +112,7 @@ public class Profile{
             universeLoad.setAccessible(true);
             universeLoad.invoke(universe);
         }catch(Throwable e){
-            Log.err("[Rogue] Could not reload campaign data", e);
+            Log.err("[Survivors] Could not reload campaign data", e);
         }
 
         for(TechNode node : mindustry.content.TechTree.all){

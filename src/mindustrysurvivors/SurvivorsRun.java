@@ -33,10 +33,10 @@ import mindustry.io.*;
 
 import static mindustry.Vars.*;
 
-public class RogueRun{
+public class SurvivorsRun{
     public static final String saveKey = "mindustry-survivors-run", lastStandTag = "mindustry-survivors-last-stand";
 
-    public static @Nullable RogueRun current;
+    public static @Nullable SurvivorsRun current;
     static final ObjectMap<TechNode, ItemStack[]> realCosts = new ObjectMap<>();
     static final float waveGapScale = 0.2f;
     static final ObjectFloatMap<UnitType> realBuildSpeed = new ObjectFloatMap<>();
@@ -89,7 +89,7 @@ public class RogueRun{
 
     public static void startNew(Difficulty difficulty, int heat){
         Arena.deleteSave();
-        RogueRun run = new RogueRun();
+        SurvivorsRun run = new SurvivorsRun();
         run.id = Math.abs(new Rand().nextLong());
         run.difficulty = heat > 0 ? Difficulty.eradication : difficulty;
         run.heat = heat;
@@ -108,7 +108,7 @@ public class RogueRun{
 
     public static void finish(boolean won){
         Core.settings.remove(saveKey);
-        Log.info("[Rogue] Run @ on wave @", won ? "won" : "lost", state.wave);
+        Log.info("[Survivors] Run @ on wave @", won ? "won" : "lost", state.wave);
     }
 
     public static void enter(){
@@ -288,7 +288,7 @@ public class RogueRun{
     void onLaunch(){
         launches++;
         save();
-        Log.info("[Rogue] Launched to @ (launch @)", state.rules.sector.name(), launches);
+        Log.info("[Survivors] Launched to @ (launch @)", state.rules.sector.name(), launches);
     }
 
     void onLoaded(){
@@ -298,7 +298,7 @@ public class RogueRun{
             pendingRelic = relicsOn && relicOffer().any();
             copies.putAll(Arena.startingKit());
             curses.set(Curses.roll(heatBudget[heat], heatMinCurses[heat], new Rand(id * 7121L)));
-            if(curses.any()) Log.info("[Rogue] Curses: @", curses.map(c -> c.name));
+            if(curses.any()) Log.info("[Survivors] Curses: @", curses.map(c -> c.name));
         }
         sectorLoaded = true;
         if(!relicsOn) pendingRelic = pendingCurse = false;
@@ -333,7 +333,7 @@ public class RogueRun{
             Boolp shown = group.visibility;
             group.visibility = () -> !active() && (shown == null || shown.get());
         }catch(Throwable e){
-            Log.err("[Rogue] Could not hide hints", e);
+            Log.err("[Survivors] Could not hide hints", e);
         }
     }
 
@@ -350,7 +350,7 @@ public class RogueRun{
         pendingCurse = false;
         if(curse != null && !curses.contains(curse)){
             curses.add(curse);
-            Log.info("[Rogue] Enemies got '@'", curse.name);
+            Log.info("[Survivors] Enemies got '@'", curse.name);
         }
         save();
     }
@@ -403,7 +403,7 @@ public class RogueRun{
             relicsTaken++;
             if(curse != null && !curses.contains(curse)){
                 curses.add(curse);
-                Log.info("[Rogue] Enemies got '@'", curse.name);
+                Log.info("[Survivors] Enemies got '@'", curse.name);
             }
         }else{
             if(pendingModifiers <= 0) return;
@@ -414,7 +414,7 @@ public class RogueRun{
         if(reward.copyOf != null){
             copies.increment(reward.copyOf, Arena.cardSize(reward.copyOf));
             Arena.recount();
-            Log.info("[Rogue] Took '@'", reward.name);
+            Log.info("[Survivors] Took '@'", reward.name);
             return;
         }
         grant(reward);
@@ -427,13 +427,13 @@ public class RogueRun{
             for(int i = 0; i < 2 && curses.any(); i++){
                 Curses.Curse lifted = curses.remove(rand.random(curses.size - 1));
                 Curses.lifted(lifted);
-                Log.info("[Rogue] Curse lifted: '@'", lifted.name);
+                Log.info("[Survivors] Curse lifted: '@'", lifted.name);
             }
         }
         if(reward == Rewards.gracePeriod) pendingGift = true;
         applyTweaks();
         save();
-        Log.info("[Rogue] Took '@'", reward.name);
+        Log.info("[Survivors] Took '@'", reward.name);
     }
 
     public void adminToggle(Rewards.Reward reward){
@@ -448,7 +448,7 @@ public class RogueRun{
             clearOffer();
             applyTweaks();
             save();
-            Log.info("[Rogue] Admin removed '@'", reward.name);
+            Log.info("[Survivors] Admin removed '@'", reward.name);
         }else{
             if(reward.isRelic()) relicsTaken++;
             clearOffer();
@@ -459,10 +459,10 @@ public class RogueRun{
     public void adminToggle(Curses.Curse curse){
         if(curses.remove(curse)){
             Curses.lifted(curse);
-            Log.info("[Rogue] Admin lifted '@'", curse.name);
+            Log.info("[Survivors] Admin lifted '@'", curse.name);
         }else{
             curses.add(curse);
-            Log.info("[Rogue] Admin added '@'", curse.name);
+            Log.info("[Survivors] Admin added '@'", curse.name);
         }
         save();
     }
@@ -472,7 +472,7 @@ public class RogueRun{
         Call.sectorCapture();
         Seq<Unit> enemies = state.rules.waveTeam.data().units.copy();
         for(Unit unit : enemies) unit.remove();
-        Log.info("[Rogue] Admin captured @", state.rules.sector.name());
+        Log.info("[Survivors] Admin captured @", state.rules.sector.name());
     }
 
     public static void adminUnlockResearch(){
@@ -481,7 +481,7 @@ public class RogueRun{
             if(!(node.content instanceof Block block && disabled(block))) node.content.unlock();
         }
         lockSectors();
-        Log.info("[Rogue] Admin unlocked all research");
+        Log.info("[Survivors] Admin unlocked all research");
     }
 
     public static Seq<SectorPreset> campaignOrder(){
@@ -593,7 +593,7 @@ public class RogueRun{
             Fx.spawnShockwave.at(core.x, core.y, radius);
             Sounds.explosionTitan.at(core);
             if(!headless) ui.announce("[#" + Rewards.Rarity.relic.color + "]Last Stand!");
-            Log.info("[Rogue] Last Stand removed @ enemies", doomed.size);
+            Log.info("[Survivors] Last Stand removed @ enemies", doomed.size);
             return;
         }
     }
@@ -635,7 +635,7 @@ public class RogueRun{
         CoreBuild core = state.rules.defaultTeam.core();
         if(core == null) return;
         for(Item item : items) core.handleStack(item, Rewards.giftAmount, null);
-        Log.info("[Rogue] Grace Period gave @", items.map(i -> i.name));
+        Log.info("[Survivors] Grace Period gave @", items.map(i -> i.name));
     }
 
     void scrap(Building build){
@@ -658,11 +658,11 @@ public class RogueRun{
         Core.settings.put(saveKey, out.toString());
     }
 
-    public static @Nullable RogueRun load(){
+    public static @Nullable SurvivorsRun load(){
         String text = Core.settings.getString(saveKey, null);
         if(text == null) return null;
         try{
-            RogueRun run = new RogueRun();
+            SurvivorsRun run = new SurvivorsRun();
             for(String line : text.split("\n")){
                 int eq = line.indexOf('=');
                 if(eq < 0) continue;
@@ -677,7 +677,7 @@ public class RogueRun{
             }
             return run;
         }catch(Throwable e){
-            Log.err("[Rogue] Could not read the saved run", e);
+            Log.err("[Survivors] Could not read the saved run", e);
             return null;
         }
     }

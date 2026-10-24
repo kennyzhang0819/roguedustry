@@ -27,7 +27,7 @@ public class RunReport{
         System.out.println();
         System.out.println("== Disabled blocks ==");
         for(Block block : Vars.content.blocks()){
-            if(RogueRun.disabled(block)) System.out.println(block.localizedName);
+            if(SurvivorsRun.disabled(block)) System.out.println(block.localizedName);
         }
 
         System.out.println();
@@ -43,7 +43,7 @@ public class RunReport{
         }
 
         System.out.println();
-        System.out.println("Modifiers all have the same chance. XP for each level: " + Seq.with(0, 1, 2, 4, 9, 19, 29).map(l -> l + 1 + "=" + (int)RogueRun.xpFor(l)).toString(", "));
+        System.out.println("Modifiers all have the same chance. XP for each level: " + Seq.with(0, 1, 2, 4, 9, 19, 29).map(l -> l + 1 + "=" + (int)SurvivorsRun.xpFor(l)).toString(", "));
         System.out.println();
         Weapons.load();
         System.out.println("== Orbiting weapons (level 1 is the base ammo) ==");
@@ -73,8 +73,8 @@ public class RunReport{
             }
             total += hp;
             xp += hp * Survivor.xpRate;
-            while(xp >= RogueRun.xpFor(level)){
-                xp -= RogueRun.xpFor(level);
+            while(xp >= SurvivorsRun.xpFor(level)){
+                xp -= SurvivorsRun.xpFor(level);
                 level++;
             }
             if((w + 1) % 5 == 0 || w < 3) levels.append("wave ").append(w + 1).append(": level ").append(level).append(", ");
@@ -88,10 +88,10 @@ public class RunReport{
         }
         System.out.println();
         System.out.println("== Sample curse rolls ==");
-        for(int heat = 1; heat <= RogueRun.maxHeat; heat++){
+        for(int heat = 1; heat <= SurvivorsRun.maxHeat; heat++){
             for(int sample = 0; sample < 3; sample++){
-                Seq<Curses.Curse> rolled = Curses.roll(RogueRun.heatBudget(heat), RogueRun.heatMinCurses(heat), new arc.math.Rand(heat * 1000L + sample));
-                System.out.println("Eradication +" + heat + ": " + rolled.map(c -> c.name + " (" + c.cost + ")").toString(", ") + "  = " + rolled.sum(c -> c.cost) + " of " + RogueRun.heatBudget(heat));
+                Seq<Curses.Curse> rolled = Curses.roll(SurvivorsRun.heatBudget(heat), SurvivorsRun.heatMinCurses(heat), new arc.math.Rand(heat * 1000L + sample));
+                System.out.println("Eradication +" + heat + ": " + rolled.map(c -> c.name + " (" + c.cost + ")").toString(", ") + "  = " + rolled.sum(c -> c.cost) + " of " + SurvivorsRun.heatBudget(heat));
             }
         }
     }

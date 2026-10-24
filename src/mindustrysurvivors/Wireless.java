@@ -51,7 +51,7 @@ public class Wireless{
         SaveVersion.addCustomChunk("mindustry-survivors-wireless", new SaveFileReader.CustomChunk(){
             @Override
             public boolean shouldWrite(){
-                return RogueRun.wirelessRun();
+                return SurvivorsRun.wirelessRun();
             }
 
             @Override
@@ -107,7 +107,7 @@ public class Wireless{
         });
 
         Events.on(WorldLoadEvent.class, e -> Core.app.post(() -> {
-            if(!RogueRun.wirelessOn()) return;
+            if(!SurvivorsRun.wirelessOn()) return;
             for(Block block : content.blocks()){
                 if(banned(block)) state.rules.bannedBlocks.add(block);
             }
@@ -115,7 +115,7 @@ public class Wireless{
         }));
 
         Events.run(Trigger.afterGameUpdate, () -> {
-            if(!RogueRun.wirelessOn() || state.isPaused() || net.client()) return;
+            if(!SurvivorsRun.wirelessOn() || state.isPaused() || net.client()) return;
             if((timer += Time.delta) < interval) return;
             timer = 0f;
             update();

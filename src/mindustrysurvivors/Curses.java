@@ -330,7 +330,7 @@ public class Curses{
             }
         }
 
-        if(on(shieldTowers) && state.rules.waves && !RogueRun.captured() && (towerTimer += Time.delta) >= towerPeriod){
+        if(on(shieldTowers) && state.rules.waves && !SurvivorsRun.captured() && (towerTimer += Time.delta) >= towerPeriod){
             towerTimer = 0f;
             raiseTower();
         }
@@ -428,7 +428,7 @@ public class Curses{
     }
 
     static boolean on(Curse m){
-        return RogueRun.active() && RogueRun.current.curses.contains(m);
+        return SurvivorsRun.active() && SurvivorsRun.current.curses.contains(m);
     }
 
     static void update(){
@@ -570,12 +570,12 @@ public class Curses{
     static void later(float delay, Runnable action){
         var sector = state.rules.sector;
         Time.run(delay, () -> {
-            if(RogueRun.active() && !state.gameOver && state.rules.sector == sector) action.run();
+            if(SurvivorsRun.active() && !state.gameOver && state.rules.sector == sector) action.run();
         });
     }
 
     static void onDeath(Unit unit){
-        if(!RogueRun.active() || unit.team != state.rules.waveTeam || !unit.isEnemy()) return;
+        if(!SurvivorsRun.active() || unit.team != state.rules.waveTeam || !unit.isEnemy()) return;
         UnitType type = unit.type;
         float x = unit.x, y = unit.y;
         boolean child = released.remove(unit.id), wasRevived = revived.remove(unit.id);
@@ -763,7 +763,7 @@ public class Curses{
         Events.on(UnitDestroyEvent.class, e -> onDeath(e.unit));
 
         Events.on(UnitDamageEvent.class, e -> {
-            if(!RogueRun.active()) return;
+            if(!SurvivorsRun.active()) return;
             if(e.unit.team == state.rules.defaultTeam){
                 onHit(e.bullet, e.bullet.damage);
                 if(e.bullet.owner instanceof Unit attacker && attacker.team == state.rules.waveTeam) onEnemyAttack(attacker);
@@ -774,7 +774,7 @@ public class Curses{
         });
 
         Events.on(BuildDamageEvent.class, e -> {
-            if(!RogueRun.active() || e.build.team != state.rules.defaultTeam) return;
+            if(!SurvivorsRun.active() || e.build.team != state.rules.defaultTeam) return;
             onHit(e.source, e.source.type.buildingDamage(e.source));
             if(e.source.owner instanceof Unit attacker && attacker.team == state.rules.waveTeam) onEnemyAttack(attacker);
         });
@@ -803,7 +803,7 @@ public class Curses{
         });
 
         Events.run(Trigger.afterGameUpdate, () -> {
-            if(RogueRun.active()) update();
+            if(SurvivorsRun.active()) update();
         });
     }
 }

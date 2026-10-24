@@ -81,13 +81,13 @@ public class TurretMods{
     }
 
     static boolean has(Rewards.Reward reward){
-        return RogueRun.active() && RogueRun.current.stacks(reward) > 0;
+        return SurvivorsRun.active() && SurvivorsRun.current.stacks(reward) > 0;
     }
 
     static float sum(Block block, Func<Rewards.Reward, Float> field){
         float total = 0f;
-        if(!RogueRun.active()) return total;
-        for(var e : RogueRun.current.rewards){
+        if(!SurvivorsRun.active()) return total;
+        for(var e : SurvivorsRun.current.rewards){
             if(e.key.blocks.contains(block)) total += field.get(e.key) * e.value;
         }
         return total;
@@ -104,8 +104,8 @@ public class TurretMods{
 
     public static void applyCosts(){
         restoreCosts();
-        if(!RogueRun.active() && (RogueRun.current == null || !Profile.inRun())) return;
-        for(var e : RogueRun.current.rewards){
+        if(!SurvivorsRun.active() && (SurvivorsRun.current == null || !Profile.inRun())) return;
+        for(var e : SurvivorsRun.current.rewards){
             if(e.key.buildTime > 0f){
                 for(Block block : e.key.blocks){
                     if(!realBuildTime.containsKey(block)) realBuildTime.put(block, block.buildTime);
@@ -363,13 +363,13 @@ public class TurretMods{
 
     static void registerEvents(){
         Events.run(Trigger.afterGameUpdate, () -> {
-            if(RogueRun.active() && !state.isPaused()) update();
+            if(SurvivorsRun.active() && !state.isPaused()) update();
         });
 
         Events.on(WorldLoadBeginEvent.class, e -> reset());
 
         Events.on(BlockDestroyEvent.class, e -> {
-            if(RogueRun.active() && e.tile.build != null) destroyed(e.tile.build);
+            if(SurvivorsRun.active() && e.tile.build != null) destroyed(e.tile.build);
         });
 
         Events.on(BlockBuildBeginEvent.class, e -> {
@@ -377,16 +377,16 @@ public class TurretMods{
         });
 
         Events.on(UnitBulletDestroyEvent.class, e -> {
-            if(!RogueRun.active() || e.unit == null || e.bullet == null || !e.unit.isFlying() || e.unit.team != state.rules.waveTeam) return;
+            if(!SurvivorsRun.active() || e.unit == null || e.bullet == null || !e.unit.isFlying() || e.unit.team != state.rules.waveTeam) return;
             if(e.bullet.owner instanceof Building b && b.block == Blocks.scatter && b.team == state.rules.defaultTeam) skyfallen.add(e.unit.id);
         });
 
         Events.on(UnitDestroyEvent.class, e -> {
-            if(RogueRun.active() && e.unit.team == state.rules.waveTeam) enemyDied(e.unit);
+            if(SurvivorsRun.active() && e.unit.team == state.rules.waveTeam) enemyDied(e.unit);
         });
 
         Events.on(UnitDamageEvent.class, e -> {
-            if(!RogueRun.active() || e.unit.team != state.rules.waveTeam || !has(Rewards.inferno)) return;
+            if(!SurvivorsRun.active() || e.unit.team != state.rules.waveTeam || !has(Rewards.inferno)) return;
             if(e.bullet != null && e.bullet.owner instanceof Building b && b.block == Blocks.scorch && b.team == state.rules.defaultTeam){
                 e.unit.apply(StatusEffects.burning, 60f * 8f);
             }

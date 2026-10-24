@@ -26,7 +26,7 @@ import mindustry.world.blocks.defense.turrets.*;
 
 import static mindustry.Vars.*;
 
-public class RogueUI{
+public class SurvivorsUI{
     public @Nullable BaseDialog menuDialog, rewardDialog;
     static final Color curseColor = Color.valueOf("b07ae8");
     static final String adminKey = "mindustry-survivors-admin", heatKey = "mindustry-survivors-heat";
@@ -38,8 +38,8 @@ public class RogueUI{
         Events.run(Trigger.update, this::update);
     }
 
-    static RogueRun run(){
-        return RogueRun.current;
+    static SurvivorsRun run(){
+        return SurvivorsRun.current;
     }
 
     static java.lang.reflect.Field buildMenu;
@@ -62,13 +62,13 @@ public class RogueUI{
             }
         }catch(Exception e){
             buildMenuFailed = true;
-            Log.err("[Rogue] Could not hide the build menu", e);
+            Log.err("[Survivors] Could not hide the build menu", e);
         }
     }
 
     void update(){
         hideBuildMenu();
-        if(!RogueRun.active()) return;
+        if(!SurvivorsRun.active()) return;
         //the game shows the sector name for 5 seconds after the landing animation, over any dialog
         if(renderer.isCutscene()) run().loadedAt = Time.millis();
         if(state.gameOver || Core.scene.hasDialog() || Time.timeSinceMillis(run().loadedAt) < (state.rules.sector == null ? 1000 : 5500)) return;
@@ -89,7 +89,7 @@ public class RogueUI{
         c.add("Made by Zerkka").color(Color.lightGray).padBottom(18f).row();
 
         String[] picked = {Core.settings.getString(Arena.difficultyKey, Difficulty.eradication.name())};
-        int[] heat = {Mathf.clamp(Core.settings.getInt(heatKey, 0), 0, RogueRun.maxHeat)};
+        int[] heat = {Mathf.clamp(Core.settings.getInt(heatKey, 0), 0, SurvivorsRun.maxHeat)};
         c.button(b -> b.label(() -> "Difficulty: " + coloredDifficulty(picked[0], heat[0])), Styles.defaultb, () -> {
             BaseDialog pick = new BaseDialog("Difficulty");
             pick.cont.defaults().size(360f, 56f).pad(3f);
@@ -102,7 +102,7 @@ public class RogueUI{
                     pick.hide();
                 }).checked(b -> heat[0] == 0 && picked[0].equals(difficulty.name())).row();
             }
-            for(int h = 1; h <= RogueRun.maxHeat; h++){
+            for(int h = 1; h <= SurvivorsRun.maxHeat; h++){
                 int level = h;
                 pick.cont.button(coloredDifficulty(Difficulty.eradication.name(), h), Styles.togglet, () -> {
                     heat[0] = level;
@@ -116,14 +116,14 @@ public class RogueUI{
             pick.show();
         }).size(360f, 50f).padBottom(14f).row();
 
-        if(RogueRun.exists()){
+        if(SurvivorsRun.exists()){
             c.table(row -> {
                 row.button("Continue run", Icon.play, () -> {
                     menuDialog.hide();
-                    RogueRun.resume();
+                    SurvivorsRun.resume();
                 }).size(292f, 64f);
                 row.button(Icon.trash, Styles.defaulti, () -> ui.showConfirm("Delete save", "This run will be lost. Are you sure?", () -> {
-                    RogueRun.abandon();
+                    SurvivorsRun.abandon();
                     menuDialog.hide();
                     showMenu();
                 })).size(64f, 64f).padLeft(4f).tooltip("Delete this save");
@@ -132,10 +132,10 @@ public class RogueUI{
         Runnable start = () -> {
             menuDialog.hide();
             Difficulty difficulty = Structs.find(Difficulty.all, d -> d.name().equals(picked[0]));
-            RogueRun.startNew(difficulty == null ? Difficulty.eradication : difficulty, heat[0]);
+            SurvivorsRun.startNew(difficulty == null ? Difficulty.eradication : difficulty, heat[0]);
         };
         c.button("New Game", Icon.play, () -> {
-            if(RogueRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", start);
+            if(SurvivorsRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", start);
             else start.run();
         }).size(360f, 64f).row();
 
@@ -326,7 +326,7 @@ public class RogueUI{
     }
 
     public void showCurse(){
-        RogueRun run = run();
+        SurvivorsRun run = run();
         Seq<Curses.Curse> curses = run.curseOffer();
         if(curses.isEmpty()){
             run.curse(null);
@@ -356,7 +356,7 @@ public class RogueUI{
     }
 
     public void showReward(boolean relic){
-        RogueRun run = run();
+        SurvivorsRun run = run();
         if((relic ? run.relicOffer() : run.modifierOffer()).isEmpty()){
             run.skipPicks();
             return;
@@ -466,8 +466,8 @@ public class RogueUI{
     }
 
     public void showGift(){
-        RogueRun run = run();
-        Seq<Item> choices = RogueRun.giftChoices();
+        SurvivorsRun run = run();
+        Seq<Item> choices = SurvivorsRun.giftChoices();
         int needed = Math.min(Rewards.giftChoices, choices.size);
         Seq<Item> picked = new Seq<>();
         rewardDialog = new BaseDialog("[#" + Rewards.Rarity.relic.color + "]Grace Period");
@@ -504,8 +504,8 @@ public class RogueUI{
     }
 
     public void showAdmin(){
-        RogueRun run = run();
-        if(!RogueRun.active()) return;
+        SurvivorsRun run = run();
+        if(!SurvivorsRun.active()) return;
         BaseDialog dialog = new BaseDialog("Admin");
         Table c = dialog.cont;
 
@@ -514,27 +514,27 @@ public class RogueUI{
             row.button("+1 modifier pick", Icon.add, () -> {
                 run.pendingModifiers++;
                 dialog.hide();
-            }).disabled(b -> RogueRun.captured());
-            if(RogueRun.relicsOn) row.button("+1 relic pick", Icon.add, () -> {
+            }).disabled(b -> SurvivorsRun.captured());
+            if(SurvivorsRun.relicsOn) row.button("+1 relic pick", Icon.add, () -> {
                 run.pendingRelic = true;
                 dialog.hide();
-            }).disabled(b -> RogueRun.captured() || run.pendingRelic);
+            }).disabled(b -> SurvivorsRun.captured() || run.pendingRelic);
             row.button("Skip to a wave", Icon.right, () -> showWaves(dialog));
             row.button("+1 level", Icon.up, () -> {
                 run.level++;
                 run.xp = 0f;
                 run.pendingModifiers++;
-                if(RogueRun.relicsOn && run.level % RogueRun.levelsPerRelic == 0 && run.relicsTaken < RogueRun.maxRelics) run.pendingRelic = true;
+                if(SurvivorsRun.relicsOn && run.level % SurvivorsRun.levelsPerRelic == 0 && run.relicsTaken < SurvivorsRun.maxRelics) run.pendingRelic = true;
                 dialog.hide();
-            }).disabled(b -> RogueRun.captured());
+            }).disabled(b -> SurvivorsRun.captured());
         }).padBottom(8f).row();
         c.add("Tap to add or remove.").color(Color.lightGray).padBottom(4f).row();
 
         c.pane(list -> {
             list.left().defaults().left().pad(2f);
-            if(RogueRun.relicsOn) adminRewards(list, run, "Relics", "[#" + Rewards.Rarity.relic.color + "]", true);
+            if(SurvivorsRun.relicsOn) adminRewards(list, run, "Relics", "[#" + Rewards.Rarity.relic.color + "]", true);
             adminRewards(list, run, "Modifiers", "[accent]", false);
-            if(!RogueRun.relicsOn) return;
+            if(!SurvivorsRun.relicsOn) return;
             list.add("[#" + curseColor + "]Curses").padTop(10f).row();
             list.table(row -> {
                 row.left();
@@ -553,7 +553,7 @@ public class RogueUI{
 
     static final int adminPerRow = 7;
 
-    static void adminRewards(Table list, RogueRun run, String title, String color, boolean relics){
+    static void adminRewards(Table list, SurvivorsRun run, String title, String color, boolean relics){
         list.add(color + title).padTop(relics ? 0f : 10f).row();
         list.table(row -> {
             row.left();
@@ -596,13 +596,13 @@ public class RogueUI{
         dialog.cont.pane(list -> {
             list.defaults().size(360f, 50f).pad(3f);
             int i = 0;
-            for(SectorPreset preset : RogueRun.campaignOrder()){
+            for(SectorPreset preset : SurvivorsRun.campaignOrder()){
                 Sector sector = preset.sector;
                 list.button((sector.isCaptured() ? "[lightgray]" : "") + (++i) + ". " + preset.localizedName, sector.isCaptured() ? Icon.ok : Icon.play, Styles.cleart, () -> {
                     if(sector == state.rules.sector) return;
                     dialog.hide();
                     admin.hide();
-                    RogueRun.adminLand(preset);
+                    SurvivorsRun.adminLand(preset);
                 }).disabled(b -> sector == state.rules.sector).row();
             }
         }).maxHeight(Core.graphics.getHeight() / Scl.scl() * 0.7f);
@@ -612,15 +612,15 @@ public class RogueUI{
 
     void buildHud(){
         Table panel = new Table(Tex.wavepane);
-        panel.name = "rogue-hud";
-        panel.visible(() -> RogueRun.active() && ui.hudfrag.shown());
+        panel.name = "survivors-hud";
+        panel.visible(() -> SurvivorsRun.active() && ui.hudfrag.shown());
         panel.left();
         panel.defaults().growX();
-        panel.add(new Bar(() -> run() == null ? "" : RogueRun.captured() ? "Sector captured" : "Level " + (run().level + 1), () -> Pal.accent, () -> run() == null ? 0f : RogueRun.captured() ? 1f : run().xpProgress())).height(24f).pad(4f).row();
+        panel.add(new Bar(() -> run() == null ? "" : SurvivorsRun.captured() ? "Sector captured" : "Level " + (run().level + 1), () -> Pal.accent, () -> run() == null ? 0f : SurvivorsRun.captured() ? 1f : run().xpProgress())).height(24f).pad(4f).row();
         Table cursed = new Table();
         String[] lastCurses = {""};
         cursed.update(() -> {
-            RogueRun run = run();
+            SurvivorsRun run = run();
             String key = run == null ? "" : run.curses.toString();
             if(key.equals(lastCurses[0])) return;
             lastCurses[0] = key;

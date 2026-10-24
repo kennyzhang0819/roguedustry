@@ -230,7 +230,7 @@ public class Arena{
 
     public static void start(long seed){
         MapGen.Result map = MapGen.generate((int)seed);
-        Log.info("[Rogue] Map @ (seed @, @ tries), biomes @, @ ground and @ water spawn tiles", map.name, map.seed, map.tries, map.biomes, map.ground.size, map.water.size);
+        Log.info("[Survivors] Map @ (seed @, @ tries), biomes @, @ ground and @ water spawn tiles", map.name, map.seed, map.tries, map.biomes, map.ground.size, map.water.size);
         ui.loadAnd(() -> {
             logic.reset();
             state.rules = rules();
@@ -252,7 +252,7 @@ public class Arena{
                 state.rules.sector = null;
                 state.set(State.playing);
             }catch(Throwable e){
-                Log.err("[Rogue] Could not load the run", e);
+                Log.err("[Survivors] Could not load the run", e);
                 logic.reset();
                 ui.showErrorMessage("The saved run could not be loaded.");
             }
@@ -301,7 +301,7 @@ public class Arena{
     }
 
     public static Difficulty difficulty(){
-        return RogueRun.current == null ? Difficulty.eradication : RogueRun.current.difficulty;
+        return SurvivorsRun.current == null ? Difficulty.eradication : SurvivorsRun.current.difficulty;
     }
 
     public static void skipTo(int wave){
@@ -311,7 +311,7 @@ public class Arena{
         state.rules.waveTimer = true;
         state.wave = Mathf.clamp(wave, 1, lastWave);
         logic.runWave();
-        Log.info("[Rogue] Admin skipped to wave @", wave);
+        Log.info("[Survivors] Admin skipped to wave @", wave);
     }
 
     public static Family[] deal(long runId, int wave){
@@ -332,7 +332,7 @@ public class Arena{
 
     static void onWave(){
         int wave = state.wave - 1;
-        if(wave > lastWave || RogueRun.current == null) return;
+        if(wave > lastWave || SurvivorsRun.current == null) return;
         rampDamage();
         release(wave, 1f);
         if(wave >= lastWave) state.rules.waveTimer = false;
@@ -341,7 +341,7 @@ public class Arena{
     public static void release(int wave, float share){
         if(wave < 1 || wave > lastWave) return;
         share *= enemyScale(difficulty()) * waveScale;
-        Family[] dealt = deal(RogueRun.current.id, wave);
+        Family[] dealt = deal(SurvivorsRun.current.id, wave);
         UnitType[] types = new UnitType[15];
         boolean[] naval = new boolean[15];
         int[] counts = new int[15];
@@ -352,7 +352,7 @@ public class Arena{
             counts[i] = waves[wave - 1][i] <= 0 ? 0 : Math.max(1, Math.round(waves[wave - 1][i] * share));
         }
         releasing.add(new Release(types, naval, counts));
-        Log.info("[Rogue] Wave @: @ (@ units)", wave, Seq.with(dealt).map(f -> f.name), java.util.Arrays.stream(counts).sum());
+        Log.info("[Survivors] Wave @: @ (@ units)", wave, Seq.with(dealt).map(f -> f.name), java.util.Arrays.stream(counts).sum());
     }
 
     static void update(){
@@ -419,7 +419,7 @@ public class Arena{
     }
 
     public static int available(Block block){
-        RogueRun run = RogueRun.current;
+        SurvivorsRun run = SurvivorsRun.current;
         return run == null ? 0 : run.copies.get(block, 0) - placed.get(block, 0);
     }
 
@@ -428,7 +428,7 @@ public class Arena{
     }
 
     public static void recount(){
-        RogueRun run = RogueRun.current;
+        SurvivorsRun run = SurvivorsRun.current;
         if(!active() || run == null) return;
         placed.clear();
         for(Building build : state.rules.defaultTeam.data().buildings){
@@ -444,7 +444,7 @@ public class Arena{
     }
 
     static void lost(Building build){
-        RogueRun run = RogueRun.current;
+        SurvivorsRun run = SurvivorsRun.current;
         if(run == null || build.team != state.rules.defaultTeam || TurretMods.willRebuild(build)) return;
         Block block = planned(build);
         if(block != null && run.copies.get(block, 0) > 0) run.copies.increment(block, -1);
@@ -469,7 +469,7 @@ public class Arena{
         Events.on(GameOverEvent.class, e -> {
             if(!active()) return;
             deleteSave();
-            RogueRun.finish(e.winner == state.rules.defaultTeam);
+            SurvivorsRun.finish(e.winner == state.rules.defaultTeam);
         });
         Events.run(Trigger.update, Arena::update);
     }

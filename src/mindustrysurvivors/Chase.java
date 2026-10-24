@@ -71,7 +71,7 @@ public class Chase{
                         if(f.getType() == TextureRegion.class || f.getType() == TextureRegion[].class) f.set(this, f.get(UnitTypes.nova));
                     }
                 }catch(Exception e){
-                    Log.err("[Rogue] Could not copy the walker sprites", e);
+                    Log.err("[Survivors] Could not copy the walker sprites", e);
                 }
             }
         };
@@ -250,7 +250,7 @@ public class Chase{
     static final ObjectMap<Unit, Vec2> lastSeen = new ObjectMap<>();
 
     static void stressTest(AutoTest test){
-        AutoTest.later(2f, RogueRun::startNew);
+        AutoTest.later(2f, SurvivorsRun::startNew);
         Events.run(Trigger.newGame, () -> AutoTest.later(6f, () -> stress(test)));
     }
 
@@ -258,7 +258,7 @@ public class Chase{
         UnitType[] stressTypes = {UnitTypes.dagger, UnitTypes.dagger, UnitTypes.atrax, UnitTypes.nova, UnitTypes.flare, UnitTypes.flare, UnitTypes.risso};
         state.rules.waveTimer = false;
         Timer.schedule(() -> Core.app.post(() -> {
-            RogueRun r = RogueRun.current;
+            SurvivorsRun r = SurvivorsRun.current;
             if(r == null) return;
             r.pendingModifiers = 0;
             r.pendingRelic = false;
@@ -266,7 +266,7 @@ public class Chase{
         }), 0f, 0.2f);
 
         Unit me0 = player.unit();
-        Log.info("[Rogue-Test] Chase setup: core unit=@ flying=@ physics=@ fortress hits air=@ flare hits ground=@",
+        Log.info("[Survivors-Test] Chase setup: core unit=@ flying=@ physics=@ fortress hits air=@ flare hits ground=@",
             me0 == null ? "none" : me0.type.name, me0 != null && me0.isFlying(), UnitTypes.dagger.physics,
             UnitTypes.fortress.weapons.first().bullet.collidesAir, UnitTypes.flare.targetGround && UnitTypes.flare.weapons.first().bullet.collidesGround);
         float cx = world.unitWidth() / 2f, cy = world.unitHeight() / 2f, radius = 70f * tilesize;
@@ -304,7 +304,7 @@ public class Chase{
                     Unit u = type.spawn(state.rules.waveTeam, tile.worldx() + Mathf.range(tilesize / 2f), tile.worldy() + Mathf.range(tilesize / 2f));
                     u.apply(StatusEffects.disarmed, 60f * 600f);
                 }
-                Log.info("[Rogue-Test] Chase spawned: enemies=@ chasing=@", state.rules.waveTeam.data().units.size,
+                Log.info("[Survivors-Test] Chase spawned: enemies=@ chasing=@", state.rules.waveTeam.data().units.size,
                     state.rules.waveTeam.data().units.count(u -> u.controller() instanceof ChaseAI));
             });
             AutoTest.later(t + 3f, Chase::sample);
@@ -322,7 +322,7 @@ public class Chase{
                 if(step == stressSteps[stressSteps.length - 1]){
                     test.shot("chase-5k");
                     AutoTest.later(1f, () -> {
-                        Log.info("[Rogue-Test] RESULT chase done");
+                        Log.info("[Survivors-Test] RESULT chase done");
                         Core.app.exit();
                     });
                 }
@@ -371,7 +371,7 @@ public class Chase{
             }
         }
         Pathfinder.Flowfield f = pathfinder.getField(state.rules.waveTeam, Pathfinder.costGround, field);
-        Log.info("[Rogue-Test] Chase @ @: enemies=@ fps=@ updateMs=@ drawMs=@ groundTiles=@ airTiles=@ closer=@% stuckGround=@ stuckBoats=@ boatsOnLand=@ fieldReady=@",
+        Log.info("[Survivors-Test] Chase @ @: enemies=@ fps=@ updateMs=@ drawMs=@ groundTiles=@ airTiles=@ closer=@% stuckGround=@ stuckBoats=@ boatsOnLand=@ fieldReady=@",
             step, view, ground + air, (int)(frames / seconds),
             Strings.fixed(updateNs / Math.max(updates, 1) / 1e6f, 2), Strings.fixed(drawNs / Math.max(draws, 1) / 1e6f, 2),
             (int)(groundDst / Math.max(ground, 1) / tilesize), (int)(airDst / Math.max(air, 1) / tilesize),

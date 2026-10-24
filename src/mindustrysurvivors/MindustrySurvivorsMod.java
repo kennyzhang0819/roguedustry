@@ -7,13 +7,13 @@ import mindustry.game.EventType.*;
 import mindustry.mod.*;
 
 public class MindustrySurvivorsMod extends Mod{
-    public static final boolean roguelike = true, dev = System.getenv("ROGUE_DEV") != null && !System.getenv("ROGUE_DEV").isEmpty();
+    public static final boolean roguelike = true, dev = System.getenv("SURVIVORS_DEV") != null && !System.getenv("SURVIVORS_DEV").isEmpty();
 
-    public static RogueUI ui;
+    public static SurvivorsUI ui;
     public static WirelessUI wirelessUI;
 
     public MindustrySurvivorsMod(){
-        RogueRun.registerEvents();
+        SurvivorsRun.registerEvents();
         Curses.registerEvents();
         Wireless.register();
         TurretMods.registerEvents();
@@ -22,7 +22,7 @@ public class MindustrySurvivorsMod extends Mod{
         Chase.register();
         Survivor.register();
 
-        //only local test launches set ROGUE_DEV; weather, the planet's haze and day and night are switched off there, never in the released mod
+        //only local test launches set SURVIVORS_DEV; weather, the planet's haze and day and night are switched off there, never in the released mod
         Events.on(WorldLoadEvent.class, e -> {
             if(dev) Vars.state.rules.lighting = false;
         });
@@ -33,8 +33,8 @@ public class MindustrySurvivorsMod extends Mod{
                 Planets.serpulo.hasAtmosphere = false;
                 Vars.renderer.drawWeather = false;
             }
-            if(System.getenv("ROGUE_NOMUSIC") != null) Core.audio.musicBus.setVolume(0f);
-            if(System.getenv("ROGUE_QUIET") != null){
+            if(System.getenv("SURVIVORS_NOMUSIC") != null) Core.audio.musicBus.setVolume(0f);
+            if(System.getenv("SURVIVORS_QUIET") != null){
                 Core.audio.soundBus.setVolume(0.5f);
                 Vars.control.sound.uiBus.setVolume(0.5f);
             }
@@ -43,7 +43,7 @@ public class MindustrySurvivorsMod extends Mod{
             wirelessUI.init();
 
             if(roguelike){
-                ui = new RogueUI();
+                ui = new SurvivorsUI();
                 ui.init();
             }
 

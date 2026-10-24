@@ -11,4 +11,4 @@ mkdir -p "$data/mods"
 rm -f "$data/mods/Roguedustry.jar"
 cp build/MindustrySurvivors.jar "$data/mods/"
 echo "Installed into $data/mods"
-ROGUE_DEV=1 ROGUE_NOMUSIC=1 ROGUE_QUIET=1 java -Duser.language=en -Duser.country=US -jar libs/Mindustry.jar
+SURVIVORS_DEV=1 SURVIVORS_NOMUSIC=1 SURVIVORS_QUIET=1 java -Duser.language=en -Duser.country=US -jar libs/Mindustry.jar
