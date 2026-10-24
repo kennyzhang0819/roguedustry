@@ -430,6 +430,17 @@ def absolution():
     ]
 
 
+def magnet():
+    u = poly([(6, 6), (22, 6), (22, 34), (28, 40), (36, 40), (42, 34), (42, 6), (58, 6), (58, 42), (42, 58), (22, 58), (6, 42)])
+    return [
+        (u & (X < 32), RED),
+        (u & (X >= 32), MUTED_RED),
+        (u & (Y < 16) & (X < 32), LIGHT),
+        (u & (Y < 16) & (X >= 32), SLATE_L),
+        (diamond(32, 14, 5), PEACH),
+    ]
+
+
 if __name__ == "__main__":
     for name, fn in [
         ("living-metal", living_metal), ("grace-period", grace_period), ("prefab", prefab),
@@ -448,5 +459,7 @@ if __name__ == "__main__":
         ("leadership", leadership), ("shield-towers", shield_towers), ("conquest", conquest),
     ]:
         icon("curses", name, fn())
+
+    icon("pickups", "magnet", magnet())
 
     print("Icons written to", os.path.abspath(SPRITES))

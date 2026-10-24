@@ -1,5 +1,6 @@
 package roguedustry;
 
+import arc.struct.*;
 import mindustry.*;
 import mindustry.content.*;
 import mindustry.core.*;
@@ -12,6 +13,7 @@ public class RunReport{
         Vars.headless = true;
         Vars.content = new ContentLoader();
         Vars.content.createBaseContent();
+        Arena.load();
         Rewards.load();
 
         System.out.println("== Campaign sectors ==");
@@ -41,7 +43,43 @@ public class RunReport{
         }
 
         System.out.println();
-        System.out.println("Modifier odds: " + Rewards.Rarity.common.weight + "% common, " + Rewards.Rarity.uncommon.weight + "% uncommon, " + Rewards.Rarity.rare.weight + "% rare");
+        System.out.println("Modifiers all have the same chance. XP for each level: " + Seq.with(0, 1, 2, 4, 9, 19, 29).map(l -> l + 1 + "=" + (int)RogueRun.xpFor(l)).toString(", "));
+        System.out.println();
+        Weapons.load();
+        System.out.println("== Orbiting weapons (level 1 is the base ammo) ==");
+        System.out.println(String.format("(global: damage x%.1f, fire rate x%.1f, range x%.1f on top of the base game; every level also adds +%.0f%% damage)", Weapons.globalDamage, Weapons.globalFireRate, Weapons.globalRange, Weapons.levelDamage * 100f));
+        for(var e : Weapons.steps){
+            mindustry.world.blocks.defense.turrets.BaseTurret t = (mindustry.world.blocks.defense.turrets.BaseTurret)e.key;
+            mindustry.ctype.UnlockableContent ammo = Weapons.firstAmmo(t);
+            System.out.println(t.localizedName + ": 1 " + (Weapons.support(t) ? "support" : ammo == null ? "power" : ammo.localizedName + " ammo") + String.format("  (range %.0f tiles, game damage per second %.0f, balance x%.2f, level 1 damage per second %.0f)", t.range * Weapons.globalRange / 8f, Weapons.gameDps(t), Weapons.balance(t), Weapons.levelOneDps(t)));
+            for(int i = 0; i < e.value.size; i++) System.out.println("   " + (i + 2) + " " + e.value.get(i).text);
+        }
+        System.out.println();
+        System.out.println("== Waves ==");
+        float total = 0f;
+        int units = 0;
+        StringBuilder levels = new StringBuilder();
+        int level = 0;
+        float xp = 0f;
+        for(int w = 0; w < Arena.waves.length; w++){
+            float hp = 0f;
+            for(int i = 0; i < 15; i++){
+                if(Arena.waves[w][i] == 0) continue;
+                int n = Math.max(1, Math.round(Arena.waves[w][i] * Arena.waveScale));
+                float avg = 0f;
+                for(Arena.Family f : Arena.families) avg += Math.max(1, Math.round(f.tiers[i % 5].health / 130f)) / (float)Arena.families.size;
+                hp += avg * n;
+                units += n;
+            }
+            total += hp;
+            xp += hp * Survivor.xpRate;
+            while(xp >= RogueRun.xpFor(level)){
+                xp -= RogueRun.xpFor(level);
+                level++;
+            }
+            if((w + 1) % 5 == 0 || w < 3) levels.append("wave ").append(w + 1).append(": level ").append(level).append(", ");
+        }
+        System.out.println(units + " enemies, " + (int)total + " XP in gems. Levels if every gem is picked up: " + levels);
         System.out.println();
         System.out.println("== Curses ==");
         System.out.println("(each relic brings one at random; they last until the sector is captured)");

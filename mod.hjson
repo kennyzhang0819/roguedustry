@@ -1,8 +1,8 @@
 name: "roguedustry"
-displayName: "Roguedustry"
+displayName: "Mindustry Survivors"
 author: "kennyzhang0819"
 main: "roguedustry.RoguedustryMod"
-description: "Roguelike runs on the Serpulo campaign, in a separate campaign so yours is not touched. Relics, curses and modifiers. Roguelike Campaign: no belts or pipes, every building trades with the core, faster and bigger waves. Vanilla Campaign: the normal game with the roguelike rewards."
+description: "Mindustry played like Vampire Survivors. Survive 50 waves on a random map with turrets that orbit you."
 version: "0.1.0"
 minGameVersion: "154"
 java: true

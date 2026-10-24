@@ -3,6 +3,8 @@ package roguedustry;
 import arc.*;
 import arc.files.*;
 import arc.math.*;
+import arc.scene.*;
+import arc.scene.ui.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
@@ -38,7 +40,7 @@ public class AutoTest{
             }
         });
 
-        later(60f * 5f, () -> {
+        later(60f * 8f, () -> {
             Log.info("[Rogue-Test] RESULT timeout");
             Core.app.exit();
         });
@@ -53,37 +55,77 @@ public class AutoTest{
             });
             return;
         }
+        if("chase".equals(mode)){
+            Chase.stressTest(this);
+            return;
+        }
         if("wireless".equals(mode)){
-            later(0.5f, () -> RoguedustryMod.ui.showModes());
-            later(1f, () -> shot("modes"));
             later(2f, () -> {
-                Core.scene.getDialog().hide();
-                RogueRun.startNew(true);
-                control.playSector(SectorPresets.groundZero.sector);
+                RogueRun.startNew();
             });
             Events.run(Trigger.newGame, () -> later(10f, this::wireless));
             return;
         }
+        if("arena".equals(mode)){
+            later(1f, () -> {
+                Core.settings.put(RogueUI.adminKey, true);
+                RoguedustryMod.ui.showMenu();
+            });
+            later(2f, () -> shot("01-difficulty"));
+            later(2.2f, () -> {
+                Element button = Core.scene.find(e -> e instanceof Label l && l.getText().toString().startsWith("Difficulty:"));
+                if(button != null && button.parent != null) button.parent.fireClick();
+            });
+            later(3f, () -> shot("01-difficulty-pick"));
+            later(3.2f, () -> Core.scene.getDialog().hide());
+            later(3.5f, () -> RoguedustryMod.ui.showDatabase());
+            later(4.3f, () -> shot("01-database-turrets"));
+            later(4.6f, () -> {
+                Element tab = Core.scene.find(e -> e instanceof TextButton b && "Passives".equals(b.getText().toString()));
+                if(tab != null) tab.fireClick();
+            });
+            later(5.5f, () -> shot("01-database-passives"));
+            later(6f, () -> Core.scene.getDialog().hide());
+            later(6.5f, () -> {
+                Core.scene.getDialog().hide();
+                RogueRun.startNew();
+            });
+            Events.run(Trigger.newGame, () -> {
+                if(!continued) later(7f, this::arena);
+            });
+            return;
+        }
         if("turrets".equals(mode)){
             later(2f, () -> {
-                RogueRun.startNew(true);
-                control.playSector(SectorPresets.groundZero.sector);
+                RogueRun.startNew();
             });
             Events.run(Trigger.newGame, () -> later(10f, this::turrets));
             return;
         }
         if("blocks".equals(mode)){
             later(2f, () -> {
-                RogueRun.startNew(true);
-                control.playSector(SectorPresets.groundZero.sector);
+                RogueRun.startNew();
             });
             Events.run(Trigger.newGame, () -> later(10f, this::blocks));
             return;
         }
+        if("bench".equals(mode)){
+            later(2f, () -> {
+                RogueRun.startNew();
+            });
+            Events.run(Trigger.newGame, () -> later(10f, this::bench));
+            return;
+        }
+        if("drills".equals(mode)){
+            later(2f, () -> {
+                RogueRun.startNew();
+            });
+            Events.run(Trigger.newGame, () -> later(10f, this::drills));
+            return;
+        }
         if("curses".equals(mode)){
             later(2f, () -> {
-                RogueRun.startNew(true);
-                control.playSector(SectorPresets.groundZero.sector);
+                RogueRun.startNew();
             });
             Events.run(Trigger.newGame, () -> later(10f, this::curses));
             return;
@@ -100,9 +142,6 @@ public class AutoTest{
             Core.settings.put("serpulo-test-marker", "player");
             saveDirectory.child("sector-serpulo-999.msav").writeString("player save");
             RogueRun.startNew();
-            Log.info("[Rogue-Test] In run: live=@ playerMarkerHidden=@ playerSaveHidden=@ copperUnlocked=@ duoCost=@ numberedLocked=@",
-                Profile.live(), !Core.settings.has("serpulo-test-marker"), !saveDirectory.child("sector-serpulo-999.msav").exists(), Items.copper.unlocked(), Blocks.duo.techNode.requirements.length, !Planets.serpulo.allowLaunchToNumbered);
-            control.playSector(SectorPresets.groundZero.sector);
         });
 
         Events.run(Trigger.newGame, () -> {
@@ -122,7 +161,7 @@ public class AutoTest{
         later(1.4f, () -> {
             Log.info("[Rogue-Test] After relic: relics=@ curses=@ level=@", run.relicsTaken, run.curses.map(m -> m.name), run.level);
             Unit fake = UnitTypes.fortress.create(state.rules.waveTeam);
-            for(int i = 0; i < 3; i++) run.gainXp(fake);
+            for(int i = 0; i < 3; i++) Survivor.addXp(fake.maxHealth);
             Log.info("[Rogue-Test] After XP: level=@ pendingModifiers=@ xp=@", run.level, run.pendingModifiers, (int)run.xp);
             run.pendingModifiers = 1;
         });
@@ -137,10 +176,7 @@ public class AutoTest{
             Log.info("[Rogue-Test] enemies=@ speed=@ longRange=@", enemies.size, enemies.count(u -> u.hasEffect(Curses.speedEffect)), enemies.count(u -> u.controller() instanceof Curses.LongRangeAI));
             shot("04-hud");
         });
-        later(6f, rui::showRunInfo);
-        later(6.5f, () -> shot("05-run"));
         later(7f, () -> {
-            rui.infoDialog.hide();
             control.saves.getCurrent().save();
             logic.reset();
         });
@@ -164,13 +200,152 @@ public class AutoTest{
         });
     }
 
+    void arena(){
+        RogueRun run = RogueRun.current;
+        RogueUI rui = RoguedustryMod.ui;
+        Unit me = player.unit();
+        Log.info("[Rogue-Test] Arena: active=@ size=@x@ ground=@ water=@ cores=@ player=@ at @,@ weapons=@ allowed=@",
+            RogueRun.active(), world.width(), world.height(), Arena.groundSpawns.size, Arena.waterSpawns.size, state.rules.defaultTeam.cores().size,
+            me == null ? "none" : me.type.name, me == null ? -1 : me.tileX(), me == null ? -1 : me.tileY(), Survivor.ownedGuns.map(g -> g.turret.name), state.rules.bannedBlocks.size);
+        shot("02-start");
+        later(1f, () -> {
+            Survivor.Choice a = new Survivor.Choice(), b = new Survivor.Choice(), c = new Survivor.Choice();
+            a.passive = Survivor.amount;
+            b.passive = Survivor.armor;
+            c.gun = Survivor.guns.find(g -> g.turret == Blocks.spectre);
+            Survivor.offer.set(Seq.with(a, b, c));
+            run.pendingModifiers = 1;
+        });
+        later(2f, () -> {
+            Log.info("[Rogue-Test] Level-up: dialog=@ offer=@", Core.scene.hasDialog(), Survivor.offer.map(Survivor.Choice::name));
+            shot("03-levelup");
+        });
+        later(3f, () -> {
+            rui.choose(0);
+            for(int i = 0; i < 7; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.lancer));
+            for(int i = 0; i < 9; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.hail));
+            for(int i = 0; i < 5; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.duo));
+            Survivor.give(Survivor.might);
+            for(int i = 0; i < 5; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.parallax));
+            for(int i = 0; i < 8; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.segment));
+            for(int i = 0; i < 3; i++) Survivor.give(Survivor.guns.find(g -> g.turret == Blocks.wave));
+            Survivor.give(Survivor.aura);
+            Survivor.give(Survivor.lifesteal);
+            Survivor.give(Survivor.evasion);
+            Log.info("[Rogue-Test] Loadout: weapons=@ passives=@ mounts=@", Survivor.ownedGuns.map(g -> g.turret.name + ":" + Survivor.gunLevel.get(g, 0)),
+                Survivor.ownedPassives.map(p -> p.name + ":" + Survivor.level(p)), player.unit().mounts.length);
+            logic.runWave();
+            logic.runWave();
+        });
+        later(3.6f, () -> renderer.setScale(renderer.maxScale()));
+        later(4.3f, () -> {
+            int before = Survivor.gemValue.size;
+            Survivor.magX.set(0, player.unit().x);
+            Survivor.magY.set(0, player.unit().y);
+            later(0.3f, () -> {
+                int flying = 0;
+                for(int i = 0; i < Survivor.gemPulled.size; i++) if(Survivor.gemPulled.get(i)) flying++;
+                Log.info("[Rogue-Test] Magnet: gems on map @ before; 0.3s after pickup @ left, @ of them flying to you, dialog=@", before, Survivor.gemValue.size, flying, Core.scene.hasDialog());
+            });
+        });
+        later(5f, () -> {
+            Unit u = player.unit();
+            float[] before = new float[u.mounts.length];
+            for(int i = 0; i < u.mounts.length; i++) before[i] = u.rotation + u.mounts[i].rotation;
+            u.rotation += 120f;
+            later(0.2f, () -> {
+                StringBuilder out = new StringBuilder();
+                for(int i = 2; i < u.mounts.length; i++) out.append(Math.round(Angles.angleDist(before[i], u.rotation + u.mounts[i].rotation))).append(u.mounts[i].target == null ? "" : "(aiming)").append(" ");
+                Log.info("[Rogue-Test] Turret aim change after turning 120 degrees: @", out);
+            });
+        });
+        later(3.7f, () -> {
+            Unit u = player.unit();
+            int[] values = {1, 1, 3, 8, 12, 40};
+            for(int i = 0; i < values.length; i++){
+                Tmp.v1.trns(i * 60f, 60f);
+                Survivor.gemX.add(u.x + Tmp.v1.x);
+                Survivor.gemY.add(u.y + Tmp.v1.y);
+                Survivor.gemValue.add(values[i]);
+                Survivor.gemPulled.add(false);
+            }
+            Survivor.kitX.add(u.x + 70f, u.x - 70f);
+            Survivor.kitY.add(u.y + 30f, u.y - 30f);
+            Survivor.magX.add(u.x);
+            Survivor.magY.add(u.y - 75f);
+            for(int i = 0; i < 20; i++){
+                Survivor.gemX.add(u.x + Mathf.range(900f));
+                Survivor.gemY.add(u.y + Mathf.range(900f));
+                Survivor.gemValue.add(1);
+                Survivor.gemPulled.add(false);
+            }
+        });
+        later(4f, () -> shot("03b-turrets"));
+        later(7f, () -> {
+            Unit u = player.unit();
+            Log.info("[Rogue-Test] Fighting: wave=@ enemies=@ gems=@ xp=@ level=@ health=@/@ bullets=@", state.wave, state.rules.waveTeam.data().units.size,
+                Survivor.gemValue.size, (int)run.xp, run.level, (int)u.health, (int)u.maxHealth, Groups.bullet.size());
+            int i = 0;
+            for(Unit e : state.rules.waveTeam.data().units){
+                if(i >= 8) break;
+                Tmp.v1.trns(i++ * 45f, 80f);
+                e.set(u.x + Tmp.v1.x, u.y + Tmp.v1.y);
+            }
+        });
+        later(9.5f, () -> {
+            RogueRun.current.pendingModifiers = 0;
+            if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
+            Unit u = player.unit();
+            for(int i = 0; i < 12; i++){
+                Tmp.v1.trns(i * 30f, 120f);
+                (i % 2 == 0 ? UnitTypes.flare : UnitTypes.horizon).spawn(state.rules.waveTeam, u.x + Tmp.v1.x, u.y + Tmp.v1.y).apply(StatusEffects.invincible, 600f);
+            }
+            u.health = u.maxHealth;
+            later(2.4f, () -> Log.info("[Rogue-Test] Air attack: health=@/@ 2.4s after 6 flares and 6 horizons arrived, enemy bullets shot down by Segment @", (int)player.unit().health, (int)player.unit().maxHealth, Survivor.shotDown));
+        });
+        later(9.5f, () -> renderer.setScale(renderer.maxScale()));
+        later(10f, () -> {
+            shot("04-fight");
+            Log.info("[Rogue-Test] Your bullets in flight while not shooting: @ (loadout @)", Groups.bullet.count(b -> b.owner == player.unit()), Survivor.ownedGuns.map(g -> g.turret.name));
+            Log.info("[Rogue-Test] After fight: enemies=@ gems=@ kits=@ xp=@ level=@ pending=@ kills=@ boats=@ boatsOnLand=@", state.rules.waveTeam.data().units.size,
+                Survivor.gemValue.size, Survivor.kitX.size, (int)run.xp, run.level, run.pendingModifiers, state.stats.enemyUnitsDestroyed,
+                state.rules.waveTeam.data().units.count(e -> e.type.naval), state.rules.waveTeam.data().units.count(e -> e.type.naval && !e.floorOn().isLiquid));
+        });
+        later(12f, () -> {
+            if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
+            Arena.skipTo(20);
+        });
+        later(14f, () -> {
+            Log.info("[Rogue-Test] After skip: wave=@ enemies=@", state.wave, state.rules.waveTeam.data().units.size);
+            String before = Survivor.ownedGuns.map(g -> g.turret.name + ":" + Survivor.gunLevel.get(g, 0)).toString();
+            Arena.save();
+            continued = true;
+            logic.reset();
+            RogueRun.resume();
+            later(6f, () -> {
+                Log.info("[Rogue-Test] Continued: active=@ wave=@ player=@ weapons=@ (before @) mounts=@",
+                    RogueRun.active(), state.wave, player.unit().type.name, Survivor.ownedGuns.map(g -> g.turret.name + ":" + Survivor.gunLevel.get(g, 0)), before, player.unit().mounts.length);
+                shot("05-continued");
+                Log.info("[Rogue-Test] Shake in a run: dagger death @ fortress step @ scepter death @ fortress shot @", UnitTypes.dagger.deathShake, UnitTypes.fortress.stepShake, UnitTypes.scepter.deathShake, UnitTypes.fortress.weapons.first().bullet.hitShake);
+                later(1f, () -> {
+                    logic.reset();
+                    later(0.5f, () -> {
+                        Log.info("[Rogue-Test] Shake after the run: dagger death @ fortress step @ scepter death @ fortress shot @", UnitTypes.dagger.deathShake, UnitTypes.fortress.stepShake, UnitTypes.scepter.deathShake, UnitTypes.fortress.weapons.first().bullet.hitShake);
+                        Log.info("[Rogue-Test] RESULT done");
+                        Core.app.exit();
+                    });
+                });
+            });
+        });
+    }
+
     void wireless(){
         RogueRun.current.pendingRelic = false;
         RogueRun.current.pendingCurse = false;
         if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
         float first = state.wavetime;
         logic.runWave();
-        Log.info("[Rogue-Test] Wireless run: alphaBuild=@ on=@ firstWaveIn=@s nextGap=@s spawnMultiplier=@ erekirOpen=@ launchTargets=@", UnitTypes.alpha.buildSpeed, RogueRun.wirelessOn(), (int)(first / 60f), (int)(state.wavetime / 60f),
+        Log.info("[Rogue-Test] Wireless run: lighting=@ weather=@ alphaBuild=@ on=@ firstWaveIn=@s nextGap=@s spawnMultiplier=@ erekirOpen=@ launchTargets=@", state.rules.lighting, renderer.drawWeather, UnitTypes.alpha.buildSpeed, RogueRun.wirelessOn(), (int)(first / 60f), (int)(state.wavetime / 60f),
             state.getPlanet().campaignRules.difficulty.enemySpawnMultiplier, Planets.erekir.alwaysUnlocked, Planets.serpulo.launchCandidates);
         Team team = state.rules.defaultTeam;
         Building core = team.core();
@@ -365,14 +540,6 @@ public class AutoTest{
         Unit shooter = foe(UnitTypes.fortress, force, 130f, 0f, true);
         Unit inside = foe(UnitTypes.fortress, force, 0f, 30f, false);
 
-        Tile mech = spot(core, Blocks.mechanicalDrill, 6f);
-        Unit rockTarget = foe(UnitTypes.fortress, mech, 30f, 0f, false);
-        Tile laserDrill = spot(core, Blocks.laserDrill, 6f);
-        Unit laserTarget = foe(UnitTypes.fortress, laserDrill, 40f, 0f, false);
-        Tile blast = spot(core, Blocks.blastDrill, 6f);
-        Unit blown = foe(UnitTypes.dagger, blast, 30f, 0f, false);
-        blown.unapply(StatusEffects.unmoving);
-        float blownX = blown.x, blownY = blown.y;
         Tile water = spot(core, Blocks.waterExtractor, 6f);
         Unit soaked = foe(UnitTypes.dagger, water, 30f, 0f, false);
         Tile cultivator = spot(core, Blocks.cultivator, 6f);
@@ -403,9 +570,7 @@ public class AutoTest{
             Log.info("[Rogue-Test] Triage: patient=@/@ ; Fungal: crawlers=@", (int)patient.build.health, (int)patient.build.maxHealth, state.rules.defaultTeam.data().units.count(u -> u.type == UnitTypes.crawler));
             Log.info("[Rogue-Test] Mirror: reflected=@ ; shooterHealth=@/@", BlockMods.mirrored, (int)shooter.health, (int)shooter.maxHealth);
             ((mindustry.world.blocks.defense.ForceProjector.ForceBuild)force.build).buildup = 1e7f;
-            Log.info("[Rogue-Test] Production: rock fortress=@/@ laser fortress=@/@ blown=@ wet=@ spores=@ tarred=@",
-                (int)rockTarget.health, (int)rockTarget.maxHealth, (int)laserTarget.health, (int)laserTarget.maxHealth, (int)Mathf.dst(blownX, blownY, blown.x, blown.y),
-                soaked.hasEffect(StatusEffects.wet), spored.hasEffect(StatusEffects.sporeSlowed), tarred.hasEffect(StatusEffects.tarred));
+            Log.info("[Rogue-Test] Production: wet=@ spores=@ tarred=@", soaked.hasEffect(StatusEffects.wet), spored.hasEffect(StatusEffects.sporeSlowed), tarred.hasEffect(StatusEffects.tarred));
             tarred.damage(1f);
             Events.fire(new UnitDamageEvent().set(tarred, Bullets.placeholder.create(core, state.rules.defaultTeam, tarred.x, tarred.y, 0f)));
         });
@@ -419,6 +584,95 @@ public class AutoTest{
             Log.info("[Rogue-Test] RESULT blocks done");
             Core.app.exit();
         });
+    }
+
+    @Nullable Tile onOre(Building core, Block drill){
+        Team team = state.rules.defaultTeam;
+        Tile t = near(core, c -> Build.validPlace(drill, team, c.x, c.y, 0) && !used.contains(u -> u.dst(c) < (drill.size + 3) * tilesize));
+        if(t == null) return null;
+        used.add(t);
+        t.setNet(drill, team, 0);
+        if(t.build.power != null && t.build.power.graph != null) t.build.power.graph.producers.add(Curses.generator);
+        return t;
+    }
+
+    void drills(){
+        RogueRun run = RogueRun.current;
+        run.pendingRelic = false;
+        if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
+        Building core = state.rules.defaultTeam.core();
+        Tile mech = onOre(core, Blocks.mechanicalDrill), pneu = onOre(core, Blocks.pneumaticDrill), laser = onOre(core, Blocks.laserDrill);
+        later(1f, () -> {
+            var m = (mindustry.world.blocks.production.Drill.DrillBuild)mech.build;
+            int before = m.dominantItems;
+            for(Rewards.Reward r : Seq.with(Rewards.wideBore, Rewards.doubleHaul, Rewards.deepVein, Rewards.prospector, Rewards.overpressure)) run.rewards.put(r, 1);
+            run.applyTweaks();
+            int copper = core.items.get(Items.copper), titanium = core.items.get(Items.titanium);
+            later(1.5f, () -> Log.info("[Rogue-Test] Wide Bore: ore counted @ -> @", before, m.dominantItems));
+            later(8f, () -> {
+                var p = (mindustry.world.blocks.production.Drill.DrillBuild)pneu.build;
+                Log.info("[Rogue-Test] Deep Vein: pneumatic mines @ ; core titanium +@ ; core copper +@", p.dominantItem, core.items.get(Items.titanium) - titanium, core.items.get(Items.copper) - copper);
+                Log.info("[Rogue-Test] Double Haul and Prospector bonus keys=@ ; laser=@", BlockMods.bonusItems.size, laser == null ? "no ore spot" : ((mindustry.world.blocks.production.Drill.DrillBuild)laser.build).dominantItem);
+                Log.info("[Rogue-Test] RESULT drills done");
+                Core.app.exit();
+            });
+        });
+    }
+
+    void bench(){
+        RogueRun.current.pendingRelic = false;
+        if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
+        state.rules.waveTimer = false;
+        Tile spawn = spawner.getSpawns().first();
+        Building core = state.rules.defaultTeam.core();
+        Core.camera.position.set((spawn.worldx() + core.x) / 2f, (spawn.worldy() + core.y) / 2f);
+        Timer.schedule(() -> Core.app.post(() -> {
+            RogueRun r = RogueRun.current;
+            if(r == null) return;
+            r.pendingModifiers = 0;
+            r.pendingRelic = false;
+            r.pendingGift = false;
+            if(Core.scene.getDialog() != null) Core.scene.getDialog().hide();
+        }), 0f, 0.2f);
+        if(OS.env("BENCH_NOPHYS") != null){
+            UnitTypes.dagger.physics = false;
+            UnitTypes.flare.physics = false;
+        }
+        boolean offscreen = OS.env("BENCH_OFFSCREEN") != null;
+        if(offscreen) Timer.schedule(() -> Core.app.post(() -> Core.camera.position.set(-5000f, -5000f)), 0f, 0.1f);
+        int[] steps = {1000, 3000, 6000, 10000, 20000};
+        float t = 0f;
+        for(int step : steps){
+            float at = t;
+            later(at, () -> {
+                int have = Groups.unit.count(u -> u.team == state.rules.waveTeam);
+                for(int i = have; i < step; i++){
+                    Tmp.v1.rnd(Mathf.random(30f * tilesize));
+                    Unit u = (i % 2 == 0 ? UnitTypes.dagger : UnitTypes.flare).spawn(state.rules.waveTeam, spawn.worldx() + Tmp.v1.x, spawn.worldy() + Tmp.v1.y);
+                    u.apply(StatusEffects.disarmed, 60f * 600f);
+                }
+                Log.info("[Rogue-Test] Bench spawned: group=@ team=@", Groups.unit.size(), state.rules.waveTeam.data().units.size);
+                later(1f, () -> Log.info("[Rogue-Test] Bench 1s later: group=@ team=@ daggers=@ flares=@", Groups.unit.size(), state.rules.waveTeam.data().units.size,
+                    Groups.unit.count(u -> u.type == UnitTypes.dagger), Groups.unit.count(u -> u.type == UnitTypes.flare)));
+            });
+            later(at + 4f, () -> {
+                long start = Time.nanos();
+                int frames = Core.graphics.getFrameId() > 0 ? (int)Core.graphics.getFrameId() : 0;
+                later(3f, () -> {
+                    float seconds = Time.timeSinceNanos(start) / 1e9f;
+                    int count = (int)Core.graphics.getFrameId() - frames;
+                    Log.info("[Rogue-Test] Bench: units=@ paused=@ fps=@ avgFrameMs=@ bullets=@", Groups.unit.size(), state.isPaused(), (int)(count / seconds), (int)(seconds * 1000f / Math.max(count, 1)), Groups.bullet.size());
+                    if(step == steps[steps.length - 1]){
+                        shot("bench");
+                        later(1f, () -> {
+                            Log.info("[Rogue-Test] RESULT bench done");
+                            Core.app.exit();
+                        });
+                    }
+                });
+            });
+            t += 8f;
+        }
     }
 
     void curses(){

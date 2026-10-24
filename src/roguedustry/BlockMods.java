@@ -27,11 +27,11 @@ public class BlockMods{
     static final float tile = 8f;
     static final int golemEvery = 20, fungalMax = 3;
 
-    static BulletType rock;
     static final ObjectSet<Block> scrapWalls = new ObjectSet<>(), copperWalls = new ObjectSet<>(), titaniumWalls = new ObjectSet<>(),
         plastaniumWalls = new ObjectSet<>(), thoriumWalls = new ObjectSet<>(), phaseWalls = new ObjectSet<>(), surgeWalls = new ObjectSet<>(), menders = new ObjectSet<>();
     static final ObjectMap<Block, Block> fallbackTo = new ObjectMap<>();
 
+    public static final IntFloatMap bonusItems = new IntFloatMap();
     static final IntFloatMap triageReady = new IntFloatMap(), repulsed = new IntFloatMap(), gridReady = new IntFloatMap(), forceLast = new IntFloatMap(), alchemy = new IntFloatMap();
     static final IntSet forceBroken = new IntSet(), refracted = new IntSet();
     static final IntMap<IntSeq> crawlers = new IntMap<>();
@@ -41,13 +41,6 @@ public class BlockMods{
     public static int scrapDeaths, mirrored;
 
     public static void load(){
-        rock = new BasicBulletType(4f, 18f){{
-            width = height = 8f;
-            lifetime = 18f;
-            frontColor = Pal.gray;
-            backColor = Pal.darkerGray;
-            hitEffect = Fx.hitBulletSmall;
-        }};
         scrapWalls.addAll(Blocks.scrapWall, Blocks.scrapWallLarge, Blocks.scrapWallHuge, Blocks.scrapWallGigantic);
         copperWalls.addAll(Blocks.copperWall, Blocks.copperWallLarge);
         titaniumWalls.addAll(Blocks.titaniumWall, Blocks.titaniumWallLarge);
@@ -99,8 +92,8 @@ public class BlockMods{
 
         boolean selfSealing = has(Rewards.selfSealing), tarPit = has(Rewards.tarPit), radiation = has(Rewards.radiation), repulsor = has(Rewards.repulsor),
             tesla = has(Rewards.teslaFence), pillbox = has(Rewards.pillbox), triage = has(Rewards.triage), fortress = has(Rewards.fortressShield), backlash = has(Rewards.backlash),
-            rocks = has(Rewards.rockThrower), lucky = has(Rewards.luckyStrike), jack = has(Rewards.jackhammer), vein = has(Rewards.deepVein), laser = has(Rewards.miningLaser),
-            alch = has(Rewards.alchemy), cannon = has(Rewards.airCannon), sprinkler = has(Rewards.sprinkler), geyser = has(Rewards.geyser), spores = has(Rewards.sporeCloud),
+            wide = has(Rewards.wideBore), lucky = has(Rewards.luckyStrike), haul = has(Rewards.doubleHaul), vein = has(Rewards.deepVein), prospector = has(Rewards.prospector),
+            alch = has(Rewards.alchemy), overpressure = has(Rewards.overpressure), sprinkler = has(Rewards.sprinkler), geyser = has(Rewards.geyser), spores = has(Rewards.sporeCloud),
             fungal = has(Rewards.fungalArmy), slick = has(Rewards.oilSlick), firewall = has(Rewards.firewall);
         CoreBuild core = team.core();
         Item rarest = lucky && on60 ? rarest() : null;
@@ -132,32 +125,28 @@ public class BlockMods{
                 if(pillbox && on60) shoot(b, ((ItemTurret)Blocks.duo).ammoTypes.get(Items.copper), 6f);
             }else if(menders.contains(block)){
                 if(triage && on30 && triageReady.get(b.id, 0f) <= Time.time) triage(b);
-            }else if(block == Blocks.mechanicalDrill){
-                if(rocks && on60) shoot(b, rock, 6f);
+            }else if(block == Blocks.mechanicalDrill && b instanceof DrillBuild drill){
+                if(wide && on30) widen(drill, 2);
                 if(rarest != null && core != null && b.efficiency > 0f && Mathf.chance(0.02)){
                     core.items.add(rarest, Math.min(25, core.getMaximumAccepted(rarest) - core.items.get(rarest)));
                     Fx.upgradeCore.at(b.x, b.y, block.size);
                 }
             }else if(block == Blocks.pneumaticDrill && b instanceof DrillBuild drill){
                 if(vein && on30 && drill.dominantItem != null && drill.dominantItem != Items.titanium) drill.dominantItem = Items.titanium;
-                if(jack && on180 && b.efficiency > 0f){
-                    Fx.landShock.at(b.x, b.y);
-                    Units.nearbyEnemies(team, b.x, b.y, 5f * tile, u -> {
-                        if(!u.isFlying()) u.apply(StatusEffects.unmoving, 60f);
-                    });
-                }
+                if(haul && on60 && drill.dominantItem != null) bonus(drill, drill.dominantItem, 1f);
             }else if(block == Blocks.laserDrill && b instanceof DrillBuild drill){
-                if(laser && on90) shoot(b, ((PowerTurret)Blocks.lancer).shootType, 8f);
+                if(prospector && on60) prospect(drill);
                 if(alch && on60 && core != null){
                     float gained = alchemy.get(b.id, 0f) + drill.lastDrillSpeed * 60f * b.timeScale() / 10f;
                     int whole = (int)gained;
                     if(whole > 0) core.items.add(Items.thorium, Math.min(whole, core.getMaximumAccepted(Items.thorium) - core.items.get(Items.thorium)));
                     alchemy.put(b.id, gained - whole);
                 }
-            }else if(block == Blocks.blastDrill){
-                if(cannon && on120){
-                    Fx.spawnShockwave.at(b.x, b.y, 6f * tile);
-                    Units.nearbyEnemies(team, b.x, b.y, 6f * tile, u -> u.impulse(Tmp.v1.set(u).sub(b).setLength(14f * u.mass())));
+            }else if(block == Blocks.blastDrill && b instanceof DrillBuild drill){
+                if(overpressure && on1800 && core != null && drill.dominantItem != null){
+                    int amount = (int)(drill.lastDrillSpeed * b.timeScale() * 60f * 60f);
+                    core.items.add(drill.dominantItem, Math.max(0, Math.min(amount, core.getMaximumAccepted(drill.dominantItem) - core.items.get(drill.dominantItem))));
+                    Fx.spawnShockwave.at(b.x, b.y, block.size * tile);
                 }
             }else if(block == Blocks.waterExtractor){
                 if(sprinkler && on60){
@@ -183,6 +172,44 @@ public class BlockMods{
                 if(slick && on60) Units.nearbyEnemies(team, b.x, b.y, 6f * tile, u -> u.apply(StatusEffects.tarred, 240f));
             }
         }
+    }
+
+    //drill speed follows how many ore tiles it counts, so counting the ore around it makes it mine more
+    static void widen(DrillBuild drill, int extra){
+        Item item = drill.dominantItem;
+        if(item == null) return;
+        int size = drill.block.size, off = -(size - 1) / 2 - extra, count = 0;
+        for(int x = 0; x < size + extra * 2; x++){
+            for(int y = 0; y < size + extra * 2; y++){
+                Tile t = world.tile(drill.tileX() + off + x, drill.tileY() + off + y);
+                if(t != null && t.drop() == item) count++;
+            }
+        }
+        drill.dominantItems = Math.max(drill.dominantItems, count);
+    }
+
+    //adds the given share of what the drill mined this second as extra items, keeping leftover fractions for later
+    static void bonus(DrillBuild drill, Item item, float share){
+        int key = drill.id * 64 + item.id;
+        float gained = bonusItems.get(key, 0f) + drill.lastDrillSpeed * drill.timeScale() * 60f * share;
+        int whole = Math.min((int)gained, 60);
+        for(int i = 0; i < whole; i++) drill.offload(item);
+        bonusItems.put(key, gained - whole);
+    }
+
+    static void prospect(DrillBuild drill){
+        if(drill.dominantItem == null || drill.dominantItems <= 0) return;
+        Drill block = (Drill)drill.block;
+        ObjectIntMap<Item> ores = new ObjectIntMap<>();
+        int size = block.size, off = -(size - 1) / 2;
+        for(int x = 0; x < size; x++){
+            for(int y = 0; y < size; y++){
+                Tile t = world.tile(drill.tileX() + off + x, drill.tileY() + off + y);
+                Item drop = t == null ? null : t.drop();
+                if(drop != null && drop != drill.dominantItem && drop.hardness <= block.tier) ores.increment(drop);
+            }
+        }
+        for(var e : ores) bonus(drill, e.key, (float)e.value / drill.dominantItems);
     }
 
     static Item rarest(){
@@ -433,6 +460,7 @@ public class BlockMods{
         forceBroken.clear();
         refracted.clear();
         alchemy.clear();
+        bonusItems.clear();
         crawlers.clear();
         homing.clear();
         oilWells.clear();

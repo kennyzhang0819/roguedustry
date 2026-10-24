@@ -10,4 +10,4 @@ fi
 mkdir -p "$data/mods"
 cp build/Roguedustry.jar "$data/mods/"
 echo "Installed into $data/mods"
-java -Duser.language=en -Duser.country=US -jar libs/Mindustry.jar
+ROGUE_DEV=1 ROGUE_NOMUSIC=1 ROGUE_QUIET=1 java -Duser.language=en -Duser.country=US -jar libs/Mindustry.jar

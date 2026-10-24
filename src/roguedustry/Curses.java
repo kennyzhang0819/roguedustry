@@ -395,8 +395,8 @@ public class Curses{
                 Unit u = walkers.random();
                 ox = u.x;
                 oy = u.y;
-            }else if(spawner.getSpawns().any()){
-                Tile s = spawner.getSpawns().random();
+            }else if(Arena.spawnTile(false) != null){
+                Tile s = Arena.spawnTile(false);
                 ox = s.worldx();
                 oy = s.worldy();
             }else return;
@@ -571,17 +571,8 @@ public class Curses{
         deployed = true;
 
         int count = 0;
-        for(SpawnGroup group : state.rules.spawns){
-            int amount = Mathf.ceil(group.getSpawned(state.wave - 1) / 2f);
-            for(Tile spawn : spawner.getSpawns()){
-                if(group.spawn != -1 && group.spawn != spawn.pos()) continue;
-                for(int i = 0; i < amount; i++){
-                    Tmp.v1.rnd(tilesize * 2f);
-                    spawner.spawnUnit(group, spawn.worldx() + Tmp.v1.x, spawn.worldy() + Tmp.v1.y);
-                    count++;
-                }
-            }
-        }
+        for(int n : Arena.waves[Math.min(state.wave - 2, Arena.lastWave - 1)]) count += n == 0 ? 0 : Math.max(1, Math.round(n * 0.5f));
+        Arena.release(state.wave - 1, 0.5f);
         if(count > 0 && !headless) ui.showInfoToast("[scarlet]Aggressive Deployment:[] " + count + " extra enemies incoming", 4f);
     }
 

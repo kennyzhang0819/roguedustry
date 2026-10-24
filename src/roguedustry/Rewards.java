@@ -21,10 +21,11 @@ import static mindustry.Vars.*;
 public class Rewards{
 
     public enum Rarity{
-        common("Common", Color.valueOf("84f491"), 67),
-        uncommon("Uncommon", Color.valueOf("6f9dff"), 28),
-        rare("Rare", Color.valueOf("ffd37f"), 5),
-        relic("Relic", Color.valueOf("c77dff"), 0);
+        common("Modifier", Color.valueOf("6f9dff"), 1),
+        uncommon("Modifier", Color.valueOf("6f9dff"), 1),
+        rare("Modifier", Color.valueOf("6f9dff"), 1),
+        relic("Relic", Color.valueOf("ffd37f"), 0),
+        copies("Supply", Color.valueOf("e8e8e8"), 0);
 
         public final String label;
         public final Color color;
@@ -47,6 +48,7 @@ public class Rewards{
         public float unitHealth, unitDamage, unitSpeed, unitReload, unitBuild;
         public boolean coreUnits;
         public @Nullable StatusEffect effect;
+        public @Nullable Block copyOf;
 
         Reward(String id, String name, Rarity rarity, String description){
             this.id = id;
@@ -82,7 +84,8 @@ public class Rewards{
         }
 
         public boolean available(){
-            if(blocks.any()) return blocks.contains(Block::unlocked);
+            if(copyOf != null) return Arena.offered(copyOf);
+            if(blocks.any()) return RogueRun.current != null && blocks.contains(b -> RogueRun.current.copies.get(b, 0) > 0);
             if(units.any()) return units.contains(UnitType::unlocked);
             return iconContent == null || iconContent.unlocked();
         }
@@ -126,6 +129,7 @@ public class Rewards{
         }
     }
 
+    public static final float modifierShare = 0.35f;
     public static final int lastStandRadius = 50, giftAmount = 10000, giftChoices = 3;
 
     public static final Reward
@@ -181,16 +185,16 @@ public class Rewards{
     mirror = new Reward("mirror", "Mirror", Rarity.uncommon, "Enemy bullets that hit your force fields are reflected back."),
     backlash = new Reward("backlash", "Backlash", Rarity.rare, "When a force field breaks, it deals its full strength as damage to every enemy inside."),
     overclocked = new Reward("overclocked", "Overclocked", Rarity.common, "Mechanical drills cost half and mine twice as fast."),
-    rockThrower = new Reward("rock-thrower", "Rock Thrower", Rarity.uncommon, "Mechanical drills throw rocks at enemies within 6 tiles."),
+    wideBore = new Reward("wide-bore", "Wide Bore", Rarity.uncommon, "Mechanical drills also mine the ore up to 2 tiles around them."),
     luckyStrike = new Reward("lucky-strike", "Lucky Strike", Rarity.rare, "Each working mechanical drill has a 2% chance every second to find 25 of your rarest unlocked resource."),
     airPressure = new Reward("air-pressure", "Air Pressure", Rarity.common, "Pneumatic drills mine twice as fast and always count as water-boosted."),
-    jackhammer = new Reward("jackhammer", "Jackhammer", Rarity.uncommon, "Every 3 seconds, pneumatic drills stun ground enemies within 5 tiles for 1 second."),
+    doubleHaul = new Reward("double-haul", "Double Haul", Rarity.uncommon, "Every item a pneumatic drill mines comes out as 2."),
     deepVein = new Reward("deep-vein", "Deep Vein", Rarity.rare, "Pneumatic drills mine titanium from any ore."),
     focusedLaser = new Reward("focused-laser", "Focused", Rarity.common, "Laser drills cost half and mine three times as fast."),
-    miningLaser = new Reward("mining-laser", "Mining Laser", Rarity.uncommon, "Laser drills fire a laser at an enemy within 8 tiles every 1.5 seconds."),
+    prospector = new Reward("prospector", "Prospector", Rarity.uncommon, "Laser drills mine every kind of ore under them at once, not just the most common one."),
     alchemy = new Reward("alchemy", "Alchemy", Rarity.rare, "Laser drills also put 1 thorium into your core for every 10 items they mine."),
     turbine = new Reward("turbine", "Turbine", Rarity.common, "Airblast drills cost half and mine twice as fast."),
-    airCannon = new Reward("air-cannon", "Air Cannon", Rarity.uncommon, "Every 2 seconds, airblast drills blow enemies within 6 tiles far away."),
+    overpressure = new Reward("overpressure", "Overpressure", Rarity.uncommon, "Every 30 seconds, each airblast drill puts a minute's worth of ore straight into your core."),
     coreTap = new Reward("core-tap", "Core Tap", Rarity.rare, "Each airblast drill mines 25% faster for every other airblast drill you own."),
     aquifer = new Reward("aquifer", "Aquifer", Rarity.common, "Water extractors cost half and pump three times as fast."),
     sprinkler = new Reward("sprinkler", "Sprinkler", Rarity.uncommon, "Water extractors soak enemies within 6 tiles and put out fires on your buildings nearby."),
@@ -204,9 +208,16 @@ public class Rewards{
 
     public static final Seq<Reward> all = Seq.with(livingMetal, gracePeriod, prefab, warFactory, recycle, fieldCommander, oreMagnet, scrapRebirth, lastStand, absolution,
         swarmDoctrine, gatling, phalanx, flakWall, groundFlak, skyfall, inferno, wildfire, phoenix, siegeShells, shockField, meteor,
-        junkyard, selfAssembly, junkGolem, massProduction, thorns, pillbox, plating, shrapnel, fallback, selfSealing, tarPit, elastic, denseCore, radiation, criticalMass, phaseLattice, repulsor, refraction, overcharge, teslaFence, powerGrid, fieldHospital, triage, resurrection, fortressShield, mirror, backlash, overclocked, rockThrower, luckyStrike, airPressure, jackhammer, deepVein, focusedLaser, miningLaser, alchemy, turbine, airCannon, coreTap, aquifer, sprinkler, geyser, greenhouse, sporeCloud, fungalArmy, pressureWell, oilSlick, firewall);
+        junkyard, selfAssembly, junkGolem, massProduction, thorns, pillbox, plating, shrapnel, fallback, selfSealing, tarPit, elastic, denseCore, radiation, criticalMass, phaseLattice, repulsor, refraction, overcharge, teslaFence, powerGrid, fieldHospital, triage, resurrection, fortressShield, mirror, backlash, overclocked, wideBore, luckyStrike, airPressure, doubleHaul, deepVein, focusedLaser, prospector, alchemy, turbine, overpressure, coreTap, aquifer, sprinkler, geyser, greenhouse, sporeCloud, fungalArmy, pressureWell, oilSlick, firewall);
 
     public static void load(){
+        for(Block block : Arena.buildable){
+            int n = Arena.cardSize(block);
+            Reward card = new Reward("copies-" + block.name, block.localizedName, Rarity.copies, "+" + n + " " + block.localizedName);
+            card.copyOf = block;
+            card.iconContent = block;
+            all.add(card);
+        }
         swarmDoctrine.turret(Blocks.duo);
         swarmDoctrine.speed = swarmDoctrine.damage = 0.5f;
         swarmDoctrine.cost = 0.5f;
@@ -255,16 +266,16 @@ public class Rewards{
         mirror.group(Blocks.forceProjector);
         backlash.group(Blocks.forceProjector);
         overclocked.group(Blocks.mechanicalDrill);
-        rockThrower.group(Blocks.mechanicalDrill);
+        wideBore.group(Blocks.mechanicalDrill);
         luckyStrike.group(Blocks.mechanicalDrill);
         airPressure.group(Blocks.pneumaticDrill);
-        jackhammer.group(Blocks.pneumaticDrill);
+        doubleHaul.group(Blocks.pneumaticDrill);
         deepVein.group(Blocks.pneumaticDrill);
         focusedLaser.group(Blocks.laserDrill);
-        miningLaser.group(Blocks.laserDrill);
+        prospector.group(Blocks.laserDrill);
         alchemy.group(Blocks.laserDrill);
         turbine.group(Blocks.blastDrill);
-        airCannon.group(Blocks.blastDrill);
+        overpressure.group(Blocks.blastDrill);
         coreTap.group(Blocks.blastDrill);
         aquifer.group(Blocks.waterExtractor);
         sprinkler.group(Blocks.waterExtractor);
@@ -322,7 +333,8 @@ public class Rewards{
     }
 
     public static Seq<Reward> rollRelics(ObjectIntMap<Reward> owned, int curses, Rand rand){
-        Seq<Reward> pool = all.select(r -> r.isRelic() && owned.get(r, 0) == 0 && (r != absolution || curses > 0)), out = new Seq<>();
+        Seq<Reward> econ = Seq.with(gracePeriod, prefab, warFactory, oreMagnet, scrapRebirth, recycle);
+        Seq<Reward> pool = all.select(r -> r.isRelic() && !econ.contains(r) && owned.get(r, 0) == 0 && (r != absolution || curses > 0)), out = new Seq<>();
         while(out.size < 3 && pool.any()){
             out.add(pool.remove(rand.random(pool.size - 1)));
         }
@@ -330,29 +342,17 @@ public class Rewards{
     }
 
     public static Seq<Reward> rollModifiers(ObjectIntMap<Reward> owned, Rand rand){
-        Seq<Reward> pool = all.select(r -> !r.isRelic() && owned.get(r, 0) == 0 && r.available()), out = new Seq<>();
-        while(out.size < 3 && pool.any()){
-            Seq<Rarity> left = Seq.with(Rarity.common, Rarity.uncommon, Rarity.rare).select(k -> pool.contains(r -> r.rarity == k));
-            int pick = rand.random(left.sum(k -> k.weight) - 1);
-            Rarity rarity = left.peek();
-            for(Rarity k : left){
-                pick -= k.weight;
-                if(pick < 0){
-                    rarity = k;
-                    break;
-                }
-            }
-            Rarity chosenRarity = rarity;
-            Seq<Reward> group = pool.select(r -> r.rarity == chosenRarity);
-            Reward chosen = group.get(rand.random(group.size - 1));
-            out.add(chosen);
-            pool.remove(chosen);
+        Seq<Reward> mods = all.select(r -> !r.isRelic() && r.copyOf == null && owned.get(r, 0) == 0 && r.available());
+        Seq<Reward> cards = all.select(r -> r.copyOf != null && r.available()), out = new Seq<>();
+        while(out.size < 3 && (mods.any() || cards.any())){
+            Seq<Reward> pool = cards.isEmpty() || (mods.any() && rand.chance(modifierShare)) ? mods : cards;
+            out.add(pool.remove(rand.random(pool.size - 1)));
         }
         return out;
     }
 
     public static Seq<Reward> rerollChoices(ObjectIntMap<Reward> owned, Seq<Reward> shown, Reward old){
-        return all.select(r -> r.rarity == old.rarity && owned.get(r, 0) == 0 && !shown.contains(r) && r.available());
+        return all.select(r -> !r.isRelic() && (r.copyOf != null || owned.get(r, 0) == 0) && !shown.contains(r) && r.available());
     }
 
 }

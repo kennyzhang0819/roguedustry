@@ -1,12 +1,12 @@
 # Roguedustry
 
-A run has one of two modes, picked when it starts. Roguelike Campaign is wireless (no belts or pipes, every building trades items with the core and liquids with a shared liquid store, tap turrets to pick ammo and coolant), after the first wave it shortens the wait between waves by 90% and spawns 2.5 times the enemies, and the core unit builds twice as fast. Vanilla Campaign keeps belts and pipes. Both get the relics, curses and modifiers, and both are Serpulo only. Nothing changes outside a run.
+Players see the mod as **Mindustry Survivors** (menu button, intro page, mod list). Internal names (the mod id, jar, packages, save keys, content names) stay `roguedustry` so saves keep working.
 
-A roguelike mod for Mindustry v8 (build 160.7). It is a layer of modifiers on the real Serpulo campaign, played in a separate campaign profile so the player's own campaign is never changed. Launching, hubs, launch pads and losing sectors work exactly like the base game. In the Roguelike Campaign research is free: each node unlocks as soon as its campaign requirements are met. The Vanilla Campaign uses normal research. Logic blocks can't be built. Sectors other than the named campaign maps stay locked until Planetary Launch Terminal is captured. Relics, curses (in the style of StarCraft II co-op) and modifiers belong to one sector: they are saved in the sector's own save file, start fresh on each new sector and are wiped when it is captured. A relic pick (each relic paired with a random curse) comes on landing and at levels 10, 20 and 30. Kills give XP, and each level gives a modifier pick. Sector invasions are off.
+A roguelike mod for Mindustry v8 (build 160.7), modeled on the user's game animechs (`C:\Users\DELL\Desktop\animechs`, itself derived from Mindustry). A run is one randomly generated map (`MapGen.java`): every map gets either 1-3 big mountains or a wide open plain, a few small hills (rock clusters under 60 tiles are cleared so paths stay wide), and lakes, a coast or both with ragged banks and uneven beaches, all walkable; the player starts in a clearing near the middle and enemies spawn on any open tile near the edge. Like animechs, every map blends a second biome from the first one's kin over 20-42% of it, and one in three a third over 10-20%. Play it like Vampire Survivors: survive 50 waves from animechs' wave script (spawned at 20% of the written amounts), one every 18.5 seconds; each wave deals 3 of 6 unit families (Dagger, Nova, Crawler, Flare, Risso, Retusa) into its 3 slots. There is no core and nothing to build. The player walks as the Walker (a ground unit with Nova's look, `Chase.java`) and every enemy pathfinds to them; if they die the run is lost. The Walker keeps its own aimed gun and starts with no turrets; turrets come from level-ups. Weapons are turrets that orbit the player and fire where and when the player shoots (max 6, levels 1 to 10, planned per turret in `Weapons.java`: items are the turret's own ammo types, plus water and cryofluid cooling and bullet traits; turret power is two layers: global multipliers on the base game's numbers (`Weapons.globalDamage`, `globalFireRate`, `globalRange`), then a per-turret level 1 damage per second picked by niche in `Weapons.load`: short range hits hard, long range and splash softer; every level also adds +20% damage). Wave, Tsunami, Parallax and Segment are support turrets with low damage (Parallax and Segment run in `Survivor.supportUpdate`; Segment is the only turret that fires on its own). Passives are named after buildings (max 6, levels 1 to 5, `Survivor.java`) and support two playstyles: kiting at range (speed, range, dodge) and tanking up close (armor, health, healing, life steal, a burn aura). The first wave comes after 3 seconds, and enemy damage rises 4% per wave (`Arena.enemyDamagePerWave`). The build menu is hidden during a run. Kills drop XP gems that the player picks up; each level offers 3 choices (4 with luck), healing when everything is maxed. Kills have a 1.5% chance to drop a Thorium heal and a 0.1% chance to drop a magnet (`sprites/pickups/magnet.png`) that pulls every gem to the player, each while fewer than 3 of its kind lie on the map. Boats can cross land at half speed during a run. Five difficulties named like the game's own (Casual to Eradication) scale only the enemy count, from 25% to 100%; XP per kill scales the other way. Relics and curses are off for now (`RogueRun.relicsOn`): the code stays, nothing is rolled or shown. Curses will later be rolled at random per run, like animechs' mutators. The tech tree is fully unlocked. The old campaign modes (wireless, campaign profile) are dormant code.
 
 Curse ideas come from the StarCraft II co-op list: https://starcraft2coop.com/resources/mutators. Curses should be very punishing. Call them curses everywhere, in the UI, the code and the docs. Give curses our own names, not the StarCraft II ones; names from the user's own game animechs (`C:\Users\DELL\Desktop\animechs\docs\mutators.md`) are fine. Keep every description to one short sentence.
 
-Theme colors: curses red, relics purple, modifiers by rarity (common green, uncommon blue, rare gold).
+Theme colors: curses red, relics gold, modifiers blue. Modifier tiers are switched off for now: every modifier has the same chance.
 
 Relics and modifiers:
 - A relic is a big, one-of-a-kind effect that changes how you play (drills send ore straight to the core, all drills mine three times as fast). You can only have one of each.
@@ -20,16 +20,21 @@ Relics and modifiers:
 ## Commands
 - `./build.sh` builds `build/Roguedustry.jar`. It downloads the game jar into `libs/` the first time.
 - `./report.sh` prints the campaign sectors, disabled blocks, relics, modifiers and curses, without opening the game.
-- `./play.sh` builds, installs the mod into `%APPDATA%\Mindustry\mods\` and starts the game. It uses the user's real game data, so don't use it for tests.
+- `./play.sh` builds, installs the mod into `%APPDATA%\Mindustry\mods\` and starts the game in English with `ROGUE_DEV=1` (no weather, no planet haze, no day and night) `ROGUE_NOMUSIC=1` (no music) and `ROGUE_QUIET=1` (sound effects at 50%). It uses the user's real game data, so don't use it for tests. When launching the game yourself for the user to play, also set `ROGUE_DEV=1`, `ROGUE_NOMUSIC=1` and `-Duser.language=en -Duser.country=US`.
 
 ## Testing
 - After a change: build, then run `./report.sh`.
-- If the UI changed, run one short screenshot check (`ROGUE_AUTOTEST=wireless` for the Roguelike Campaign or `hud` for the Vanilla Campaign, about 30 seconds each; see README).
+- If the UI changed, run the short screenshot check `ROGUE_AUTOTEST=arena` (about 40 seconds; see README).
 - Don't run full automated playthroughs. The user playtests.
 - When launching the game, point `APPDATA` (Windows) or `XDG_DATA_HOME` (Linux) at an empty folder so the user's saves aren't touched.
 
 ## Where things are
-- `src/roguedustry/Wireless.java`: wireless mode: banned blocks, moving items and liquids, the liquid store, per-building picks, saving them
+- `src/roguedustry/Arena.java`: the run: rules, start and continue, wave release from spawn tiles, families, copies and which blocks can be placed
+- `src/roguedustry/Weapons.java`: the 10 levels of every orbiting turret and how they change its bullets
+- `src/roguedustry/Survivor.java`: weapons, passives, XP gems, level-up choices, spawning the player and losing on death
+- `src/roguedustry/Chase.java`: the Walker, enemies chasing the player, enemies hitting air and ground, the `chase` stress test
+- `src/roguedustry/MapGen.java`: the random map; `tools/MapPreview.java` draws maps to PNGs
+- `src/roguedustry/Wireless.java` (dormant): wireless mode: banned blocks, moving items and liquids, the liquid store, per-building picks, saving them
 - `src/roguedustry/WirelessUI.java`: the tap pop-up (ammo, fuel, coolant, boost) and the liquid display
 - `src/roguedustry/Profile.java`: swaps the player's campaign and the run's campaign (settings and sector saves) and reloads the game's campaign data
 - `src/roguedustry/RogueRun.java`: run state and saving it, free research (Roguelike Campaign only), sector lock, picks per sector, relic and modifier effects
@@ -68,6 +73,10 @@ Match the game's campaign map icons (`core/assets-raw/sprites/ui/sectors/` in th
 - The game pauses when its window loses focus.
 - Mods marked `hidden` in `mod.hjson` can't add content, so the mod is not hidden (it adds status effects).
 - Unit, weapon and turret ranges are shared by both teams. Enemy-only range changes must be undone right after the enemy uses them.
+- The game kills a ground unit standing on a solid tile, so never teleport the player onto a wall.
+- Weapons made after loading need their recoil time set by hand; the game only fills it in while loading unit types, and without it the recoil grows forever and pushes the sprite off screen.
+- A unit marked as made by a core is deleted as soon as the player lets go of it. The Walker only reports that flag to the game's input code, to hide the "respawn" hint.
+- A flow field that has no target when it is first made is never refreshed, so it must always get at least one target.
 - Units have no size of their own. Avenger grows a unit by stretching the sprites it just drew around its center, using the draw buffer's internal fields. It only works while the game draws sorted, which it does for units.
 
 ## Several agents at once

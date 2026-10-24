@@ -9,6 +9,7 @@ import arc.scene.ui.layout.*;
 import arc.struct.*;
 import arc.util.*;
 import mindustry.content.*;
+import mindustry.ctype.*;
 import mindustry.core.GameState.*;
 import mindustry.game.*;
 import mindustry.game.EventType.*;
@@ -17,19 +18,21 @@ import mindustry.graphics.*;
 import mindustry.type.*;
 import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
+import mindustry.ui.fragments.*;
 import mindustry.ui.fragments.MenuFragment.*;
+import mindustry.world.*;
+import mindustry.world.blocks.defense.turrets.*;
 
 import static mindustry.Vars.*;
 
 public class RogueUI{
-    public @Nullable BaseDialog menuDialog, rewardDialog, infoDialog;
+    public @Nullable BaseDialog menuDialog, rewardDialog;
     static final Color curseColor = Color.valueOf("f25555");
     static final String adminKey = "roguedustry-admin";
     public Seq<Runnable> offered = new Seq<>();
-    int framesInMenu;
 
     public void init(){
-        MenuButton button = new MenuButton("Roguedustry", Icon.play, this::showMenu);
+        MenuButton button = new MenuButton("Mindustry Survivors", Icon.play, this::showMenu);
         if(!mobile && ui.menufrag.desktopButtons != null){
             ui.menufrag.desktopButtons.insert(1, button);
             //the main menu only rebuilds its buttons on a resize
@@ -45,56 +48,97 @@ public class RogueUI{
         return RogueRun.current;
     }
 
-    void update(){
-        //a sector launch passes through the menu for a couple of frames, so only a longer stay there leaves the run
-        if(Profile.inRun() && state.isMenu() && !ui.planet.isShown()){
-            if(++framesInMenu > 60){
-                framesInMenu = 0;
-                RogueRun.leave();
-            }
-        }else{
-            framesInMenu = 0;
-        }
+    static java.lang.reflect.Field buildMenu;
+    static boolean buildMenuFailed;
+    static final Boolp buildMenuShown = () -> ui.hudfrag.shown() && !Arena.active();
 
+    //the game rebuilds its build menu from time to time and sets its visibility again, so the menu is hidden every frame
+    static void hideBuildMenu(){
+        if(buildMenuFailed) return;
+        try{
+            if(buildMenu == null){
+                buildMenu = PlacementFragment.class.getDeclaredField("toggler");
+                buildMenu.setAccessible(true);
+            }
+            Table menu = (Table)buildMenu.get(ui.hudfrag.blockfrag);
+            if(menu != null && menu.visibility != buildMenuShown) menu.visibility = buildMenuShown;
+        }catch(Exception e){
+            buildMenuFailed = true;
+            Log.err("[Rogue] Could not hide the build menu", e);
+        }
+    }
+
+    void update(){
+        hideBuildMenu();
         if(!RogueRun.active()) return;
         //the game shows the sector name for 5 seconds after the landing animation, over any dialog
         if(renderer.isCutscene()) run().loadedAt = Time.millis();
-        if(state.gameOver || Core.scene.hasDialog() || Time.timeSinceMillis(run().loadedAt) < 5500) return;
+        if(state.gameOver || Core.scene.hasDialog() || Time.timeSinceMillis(run().loadedAt) < (state.rules.sector == null ? 1000 : 5500)) return;
         if(run().pendingGift) showGift();
         else if(run().pendingRelic) showReward(true);
         else if(run().pendingCurse) showCurse();
-        else if(run().pendingModifiers > 0) showReward(false);
+        else if(run().pendingModifiers > 0) showLevelUp();
     }
 
     public void showMenu(){
-        menuDialog = new BaseDialog("Roguedustry");
+        menuDialog = new BaseDialog("");
         Table c = menuDialog.cont;
         c.defaults().pad(4f);
 
-        c.add("The Serpulo campaign, with roguelike rewards and [#" + curseColor + "]curses[].").row();
-        c.add("Kill enemies to obtain powerful modifiers and relics.").row();
-        c.add("This is a separate campaign. Your own campaign is not touched.").color(Color.lightGray).padBottom(10f).row();
+        c.add("MINDUSTRY SURVIVORS").fontScale(2.5f).color(Pal.accent).padBottom(4f).row();
+        c.add("Mindustry, played like Vampire Survivors").color(Color.lightGray).padBottom(14f).row();
+        c.table(list -> {
+            list.left().defaults().left().padBottom(4f);
+            for(String line : new String[]{
+                "Survive " + Arena.lastWave + " waves on a random map. Enemies chase you from every side.",
+                "Kill enemies and pick up their gems to level up.",
+                "Turrets orbit you and fire with you. They have been reworked and balanced.",
+                "Up to " + Survivor.maxPassives + " passives boost you."
+            }){
+                list.add("[accent]-[] " + line).wrap().width(800f).row();
+            }
+        }).padBottom(14f).row();
+
+        String[] picked = {Core.settings.getString(Arena.difficultyKey, Difficulty.eradication.name())};
+        c.button(b -> b.label(() -> "Difficulty: [accent]" + difficultyName(picked[0])), Styles.defaultb, () -> {
+            BaseDialog pick = new BaseDialog("Difficulty");
+            pick.cont.defaults().size(360f, 56f).pad(3f);
+            for(Difficulty difficulty : Difficulty.all){
+                pick.cont.button(difficulty.localized(), Styles.togglet, () -> {
+                    picked[0] = difficulty.name();
+                    Core.settings.put(Arena.difficultyKey, picked[0]);
+                    pick.hide();
+                }).checked(b -> picked[0].equals(difficulty.name())).row();
+            }
+            pick.addCloseButton();
+            overMenu(pick);
+            pick.show();
+        }).size(360f, 50f).padBottom(14f).row();
 
         if(RogueRun.exists()){
-            RogueRun saved = RogueRun.load();
-            if(saved != null) c.add("Current run: " + (saved.wireless ? "Roguelike Campaign" : "Vanilla Campaign")).color(Color.lightGray).row();
             c.button("Continue run", Icon.play, () -> {
                 menuDialog.hide();
-                RogueRun.enter();
-                ui.planet.show();
+                RogueRun.resume();
             }).size(360f, 64f).row();
         }
-        c.button("Start a new run", Icon.add, () -> {
-            if(RogueRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", this::showModes);
-            else showModes();
+        Runnable start = () -> {
+            menuDialog.hide();
+            Difficulty difficulty = Structs.find(Difficulty.all, d -> d.name().equals(picked[0]));
+            RogueRun.startNew(difficulty == null ? Difficulty.eradication : difficulty);
+        };
+        c.button("Start", Icon.play, () -> {
+            if(RogueRun.exists()) ui.showConfirm("New run", "Your current run will be lost. Are you sure?", start);
+            else start.run();
         }).size(360f, 64f).row();
         if(RogueRun.exists()){
             c.button("Abandon run", Icon.trash, () -> ui.showConfirm("Abandon run", "This run will be lost. Are you sure?", () -> {
                 RogueRun.abandon();
                 menuDialog.hide();
                 showMenu();
-            })).size(360f, 50f);
+            })).size(360f, 50f).row();
         }
+
+        c.button("Database", Icon.book, this::showDatabase).size(360f, 50f).row();
 
         c.check("Admin tools", Core.settings.getBool(adminKey, false), v -> Core.settings.put(adminKey, v)).padTop(10f).row();
 
@@ -102,33 +146,122 @@ public class RogueUI{
         menuDialog.show();
     }
 
-    public void showModes(){
-        BaseDialog dialog = new BaseDialog("New run");
+    static String difficultyName(String name){
+        Difficulty difficulty = Structs.find(Difficulty.all, d -> d.name().equals(name));
+        return (difficulty == null ? Difficulty.eradication : difficulty).localized();
+    }
+
+    public void showDatabase(){
+        BaseDialog dialog = new BaseDialog("Database");
+        Seq<BaseTurret> turrets = new Seq<>();
+        for(Block block : Weapons.steps.keys()){
+            if(block instanceof BaseTurret turret) turrets.add(turret);
+        }
+        turrets.sort(t -> Weapons.intro.containsKey(t) ? 1 : 0);
+        boolean[] turretTab = {true};
+        BaseTurret[] shown = {turrets.isEmpty() ? null : turrets.first()};
+
+        Table body = new Table();
+        Runnable[] fill = {null};
+        fill[0] = () -> {
+            body.clear();
+            body.top();
+            if(turretTab[0]){
+                body.pane(Styles.noBarPane, side -> {
+                    side.top().defaults().size(240f, 50f).padBottom(2f);
+                    for(BaseTurret turret : turrets){
+                        side.button(b -> {
+                            b.left().margin(6f);
+                            b.image(turret.uiIcon).size(36f).padRight(8f);
+                            b.add(turret.localizedName);
+                        }, Styles.togglet, () -> {
+                            shown[0] = turret;
+                            fill[0].run();
+                        }).checked(b -> shown[0] == turret).row();
+                    }
+                }).width(250f).growY().top().padRight(12f);
+                body.pane(Styles.noBarPane, detail -> turretDetail(detail, shown[0])).width(640f).growY().top();
+            }else{
+                body.pane(Styles.noBarPane, this::passiveList).width(900f).growY().top();
+            }
+        };
+
         Table c = dialog.cont;
-        c.defaults().pad(8f);
-        modeCard(c, dialog, true, "Roguelike Campaign",
-            "The intended roguelike experience.\n\n"
-            + "- Everything is wireless. All buildings deliver to and take from the core on their own. Turrets shoot using ammo from the core. Conveyor belts and other logistics are banned.\n\n"
-            + "- After the first wave, the wait between waves is 90% shorter, and many more enemies spawn.\n\n"
-            + "- Research is free and unlocks on its own.\n\n"
-            + "- Your core unit builds twice as fast.");
-        modeCard(c, dialog, false, "Vanilla Campaign",
-            "The original campaign with the new roguelike modifiers. A much slower pace than the Roguelike Campaign, but it keeps the original game's flavor.");
+        c.table(tabs -> {
+            tabs.button("Turrets", Styles.togglet, () -> {
+                turretTab[0] = true;
+                fill[0].run();
+            }).checked(b -> turretTab[0]).size(200f, 50f).pad(2f);
+            tabs.button("Passives", Styles.togglet, () -> {
+                turretTab[0] = false;
+                fill[0].run();
+            }).checked(b -> !turretTab[0]).size(200f, 50f).pad(2f);
+        }).padBottom(10f).row();
+        c.add(body).grow();
+        fill[0].run();
+
         dialog.addCloseButton();
+        pauseWhileShown(dialog);
+        overMenu(dialog);
         dialog.show();
     }
 
-    void modeCard(Table c, BaseDialog dialog, boolean wireless, String title, String text){
-        c.button(card -> {
-            card.top().left().margin(16f);
-            card.add(title).color(Pal.accent).left().padBottom(8f).row();
-            card.add(text).wrap().width(380f).left();
-        }, Styles.defaultb, () -> {
-            dialog.hide();
-            if(menuDialog != null) menuDialog.hide();
-            RogueRun.startNew(wireless);
-            ui.planet.show();
-        }).size(420f, 380f).top();
+    void overMenu(BaseDialog dialog){
+        BaseDialog menu = menuDialog;
+        if(menu != null && menu.isShown()){
+            menu.hide(null);
+            dialog.hidden(() -> menu.show(Core.scene, null));
+        }
+    }
+
+    static void turretDetail(Table t, @Nullable BaseTurret turret){
+        t.top().left();
+        if(turret == null) return;
+        float dps = Weapons.levelOneDps(turret);
+        t.table(head -> {
+            head.left();
+            head.image(turret.uiIcon).size(64f).padRight(12f);
+            head.table(name -> {
+                name.left();
+                name.add(turret.localizedName).color(Pal.accent).left().row();
+                name.add((Weapons.intro.containsKey(turret) ? "Support turret" : "Weapon") + (dps > 0f ? ", about " + Math.round(dps) + " damage per second at level 1" : "")).color(Color.lightGray).left();
+            });
+        }).left().padBottom(10f).row();
+        t.add(Survivor.intro(turret)).wrap().width(620f).left().padBottom(6f).row();
+        t.add("Every level after the first also adds +" + Math.round(Weapons.levelDamage * 100) + "% damage.").color(Color.lightGray).wrap().width(620f).left().padBottom(10f).row();
+
+        t.table(rows -> {
+            rows.left().defaults().left().pad(3f);
+            UnlockableContent ammo = Weapons.firstAmmo(turret);
+            levelRow(rows, 1, ammo, ammo == null ? "Joins your weapons" : "Joins your weapons with " + ammo.localizedName + " ammo");
+            for(int level = 2; level <= Weapons.maxLevel; level++){
+                Weapons.Step step = Weapons.step(turret, level);
+                if(step != null) levelRow(rows, level, step.icon, step.text);
+            }
+        }).left();
+    }
+
+    static void levelRow(Table rows, int level, @Nullable UnlockableContent icon, String text){
+        rows.add("Lv " + level).color(level == Weapons.maxLevel ? Pal.accent : Color.lightGray).width(60f);
+        if(icon != null) rows.image(icon.uiIcon).size(28f);
+        else rows.add().size(28f);
+        rows.add(text).wrap().width(520f).padLeft(6f).row();
+    }
+
+    void passiveList(Table t){
+        t.top().left();
+        t.add("You can hold up to " + Survivor.maxPassives + " passives.").color(Color.lightGray).left().padBottom(10f).row();
+        t.table(rows -> {
+            rows.left().defaults().left().pad(4f);
+            for(Survivor.Passive passive : Survivor.passives){
+                rows.image(passive.icon.uiIcon).size(40f);
+                rows.add(passive.name).color(modifierColor).width(300f).padLeft(6f);
+                StringBuilder text = new StringBuilder(passive.step(1));
+                for(int l = 2; l <= passive.maxLevel && passive.steps.length > 1; l++) text.append("\n[lightgray]").append(l).append(": ").append(passive.step(l));
+                rows.add(text.toString()).wrap().width(400f);
+                rows.add(passive.maxLevel + (passive.maxLevel == 1 ? " level" : " levels")).color(Color.lightGray).width(100f).row();
+            }
+        }).left();
     }
 
     static void curseIcons(Table table, Seq<Curses.Curse> list, float size, int perRow){
@@ -192,9 +325,9 @@ public class RogueUI{
             return;
         }
 
-        rewardDialog = new BaseDialog(relic ? "[#" + Rewards.Rarity.relic.color + "]Relic" : "Modifier");
+        rewardDialog = new BaseDialog(relic ? "[#" + Rewards.Rarity.relic.color + "]Relic" : "Level " + run.level);
         Table c = rewardDialog.cont;
-        String word = relic ? "[#" + Rewards.Rarity.relic.color + "]relic[]. Each one comes with a [#" + curseColor + "]curse[]" : "modifier";
+        String word = relic ? "[#" + Rewards.Rarity.relic.color + "]relic[]. Each one comes with a [#" + curseColor + "]curse[]" : "card";
         c.add("Pick a " + word + ".").padBottom(8f).row();
 
         Table row = c.table().get();
@@ -237,6 +370,64 @@ public class RogueUI{
         rewardDialog.show();
     }
 
+    public void showLevelUp(){
+        if(Survivor.offer.isEmpty()) Survivor.offer.set(Survivor.roll());
+        rewardDialog = new BaseDialog("Level up!");
+        Table c = rewardDialog.cont;
+        c.add("Pick one.").padBottom(8f).row();
+        offered = Survivor.offer.map(choice -> () -> Survivor.take(choice));
+        c.table(row -> {
+            for(int i = 0; i < Survivor.offer.size; i++){
+                Survivor.Choice choice = Survivor.offer.get(i);
+                int index = i;
+                int next = choice.nextLevel();
+                Color color = choice.gun != null ? Pal.accent : choice.passive != null ? modifierColor : Pal.heal;
+                row.button(card -> {
+                    card.top().margin(12f);
+                    card.image(choice.icon()).size(64f).padBottom(6f).row();
+                    card.add(choice.name()).color(color).wrap().width(210f).padBottom(4f).get().setAlignment(Align.center);
+                    card.row();
+                    card.add(next == 0 ? "" : next == 1 ? "New!" : "Level " + next).color(next == 1 ? Pal.accent : Color.lightGray).padBottom(8f).row();
+                    TextureRegion stepIcon = choice.stepIcon();
+                    card.table(line -> {
+                        if(stepIcon != null) line.image(stepIcon).size(32f).padRight(8f).top();
+                        line.add(choice.description()).wrap().width(stepIcon != null ? 160f : 200f);
+                    });
+                }, Styles.defaultb, () -> choose(index)).size(240f, 260f).pad(8f).top();
+            }
+        }).row();
+        c.table(t -> loadout(t, 48f)).padTop(10f);
+        pauseWhileShown(rewardDialog);
+        rewardDialog.show();
+    }
+
+    static final Color modifierColor = Color.valueOf("5c9cff");
+
+    static void loadout(Table t, float size){
+        t.left();
+        t.table(row -> {
+            for(int i = 0; i < Survivor.maxWeapons; i++){
+                Survivor.Gun gun = i < Survivor.ownedGuns.size ? Survivor.ownedGuns.get(i) : null;
+                slot(row, gun == null ? null : gun.turret.uiIcon, gun == null ? 0 : Survivor.gunLevel.get(gun, 1), gun == null ? "Empty weapon slot" : gun.turret.localizedName, size);
+            }
+        }).left().row();
+        t.table(row -> {
+            for(int i = 0; i < Survivor.maxPassives; i++){
+                Survivor.Passive passive = i < Survivor.ownedPassives.size ? Survivor.ownedPassives.get(i) : null;
+                slot(row, passive == null ? null : passive.icon.uiIcon, passive == null ? 0 : Survivor.level(passive), passive == null ? "Empty passive slot" : passive.name + "\n[lightgray]" + passive.step(Survivor.level(passive)), size);
+            }
+        }).left();
+    }
+
+    static void slot(Table row, @Nullable TextureRegion icon, int level, String tip, float size){
+        Table badge = new Table();
+        badge.bottom().right();
+        if(level > 0) badge.add(String.valueOf(level)).style(Styles.outlineLabel);
+        Table back = new Table(Tex.pane);
+        if(icon != null) back.image(icon).size(size * 0.7f);
+        row.stack(back, badge).size(size).pad(2f).tooltip(tip);
+    }
+
     public void showGift(){
         RogueRun run = run();
         Seq<Item> choices = RogueRun.giftChoices();
@@ -275,40 +466,6 @@ public class RogueUI{
         rewardDialog.hide();
     }
 
-    public void showRunInfo(){
-        RogueRun run = run();
-        if(!RogueRun.active()) return;
-        infoDialog = new BaseDialog("Roguedustry Modifiers");
-        Table c = infoDialog.cont;
-        c.add(RogueRun.captured() ? "Sector cleared: no relics, curses or modifiers here anymore." : "Level " + run.level + ", " + (int)run.xp + "/" + (int)RogueRun.xpFor(run.level) + " XP to the next modifier").color(Color.lightGray).padBottom(8f).row();
-
-        c.pane(list -> {
-            list.left().defaults().left().pad(2f);
-            rewardIcons(list, run, "Relics", true);
-            rewardIcons(list, run, "Modifiers", false);
-            list.add("[#" + curseColor + "]Curses").padTop(10f).row();
-            list.table(row -> {
-                row.left();
-                if(run.curses.isEmpty()) row.add("[lightgray]none");
-                int i = 0;
-                for(Curses.Curse curse : run.curses){
-                    iconCell(row, curse.icon(), 0, "[#" + curseColor + "]" + curse.name + "[]\n[lightgray]" + curse.description);
-                    if(++i % iconsPerRow == 0) row.row();
-                }
-            }).row();
-        }).maxHeight(Core.graphics.getHeight() / Scl.scl() * 0.65f).width(720f);
-
-        infoDialog.addCloseButton();
-        if(Core.settings.getBool(adminKey, false)){
-            infoDialog.buttons.button("Admin", Icon.wrench, () -> {
-                infoDialog.hide();
-                showAdmin();
-            }).size(210f, 64f);
-        }
-        pauseWhileShown(infoDialog);
-        infoDialog.show();
-    }
-
     public void showAdmin(){
         RogueRun run = run();
         if(!RogueRun.active()) return;
@@ -317,26 +474,20 @@ public class RogueUI{
 
         c.table(row -> {
             row.defaults().size(220f, 54f).pad(4f);
-            row.button("Capture this sector", Icon.ok, () -> {
-                RogueRun.adminCapture();
-                dialog.hide();
-            }).disabled(b -> RogueRun.captured());
-            row.button("Go to a sector", Icon.planet, () -> showSectors(dialog));
-            row.button("Unlock all research", Icon.tree, RogueRun::adminUnlockResearch);
-            row.row();
             row.button("+1 modifier pick", Icon.add, () -> {
                 run.pendingModifiers++;
                 dialog.hide();
             }).disabled(b -> RogueRun.captured());
-            row.button("+1 relic pick", Icon.add, () -> {
+            if(RogueRun.relicsOn) row.button("+1 relic pick", Icon.add, () -> {
                 run.pendingRelic = true;
                 dialog.hide();
             }).disabled(b -> RogueRun.captured() || run.pendingRelic);
+            row.button("Skip to a wave", Icon.right, () -> showWaves(dialog));
             row.button("+1 level", Icon.up, () -> {
                 run.level++;
                 run.xp = 0f;
                 run.pendingModifiers++;
-                if(run.level % RogueRun.levelsPerRelic == 0 && run.relicsTaken < RogueRun.maxRelics) run.pendingRelic = true;
+                if(RogueRun.relicsOn && run.level % RogueRun.levelsPerRelic == 0 && run.relicsTaken < RogueRun.maxRelics) run.pendingRelic = true;
                 dialog.hide();
             }).disabled(b -> RogueRun.captured());
         }).padBottom(8f).row();
@@ -344,8 +495,9 @@ public class RogueUI{
 
         c.pane(list -> {
             list.left().defaults().left().pad(2f);
-            adminRewards(list, run, "Relics", "[#" + Rewards.Rarity.relic.color + "]", true);
+            if(RogueRun.relicsOn) adminRewards(list, run, "Relics", "[#" + Rewards.Rarity.relic.color + "]", true);
             adminRewards(list, run, "Modifiers", "[accent]", false);
+            if(!RogueRun.relicsOn) return;
             list.add("[#" + curseColor + "]Curses").padTop(10f).row();
             list.table(row -> {
                 row.left();
@@ -370,7 +522,7 @@ public class RogueUI{
             row.left();
             int i = 0;
             for(Rewards.Reward reward : Rewards.all){
-                if(reward.isRelic() != relics) continue;
+                if(reward.isRelic() != relics || reward.copyOf != null) continue;
                 adminCell(row, reward.hasIcon() ? reward.icon() : Icon.box.getRegion(), reward.name, reward.rarity.color, () -> run.stacks(reward) > 0, () -> run.adminToggle(reward));
                 if(++i % adminPerRow == 0) row.row();
             }
@@ -382,6 +534,24 @@ public class RogueUI{
             b.image(icon).size(40f).row();
             b.add(name).color(color).wrap().width(136f).padTop(4f).get().setAlignment(Align.center);
         }, Styles.clearTogglei, toggle).checked(b -> owned.get()).size(150f, 100f).pad(2f);
+    }
+
+    void showWaves(BaseDialog admin){
+        BaseDialog dialog = new BaseDialog("Skip to a wave");
+        dialog.cont.add("Enemies on the map are removed and the wave you pick is sent now.").color(Color.lightGray).padBottom(8f).row();
+        dialog.cont.table(grid -> {
+            for(int w = 1; w <= Arena.lastWave; w++){
+                int wave = w;
+                grid.button(String.valueOf(w), Styles.cleart, () -> {
+                    dialog.hide();
+                    admin.hide();
+                    Arena.skipTo(wave);
+                }).size(80f, 56f).pad(2f);
+                if(w % 10 == 0) grid.row();
+            }
+        });
+        dialog.addCloseButton();
+        dialog.show();
     }
 
     void showSectors(BaseDialog admin){
@@ -403,39 +573,36 @@ public class RogueUI{
         dialog.show();
     }
 
-    static final int iconsPerRow = 10;
-
-    static void rewardIcons(Table list, RogueRun run, String title, boolean relics){
-        list.add((relics ? "[#" + Rewards.Rarity.relic.color + "]" : "[accent]") + title).padTop(relics ? 0f : 10f).row();
-        list.table(row -> {
-            row.left();
-            int i = 0;
-            for(Rewards.Reward reward : Rewards.all){
-                int n = run.stacks(reward);
-                if(n <= 0 || reward.isRelic() != relics) continue;
-                String tip = "[#" + reward.rarity.color + "]" + reward.name + (n > 1 ? " x" + n : "") + "[]\n[lightgray]" + reward.description;
-                iconCell(row, reward.hasIcon() ? reward.icon() : Icon.box.getRegion(), n, tip);
-                if(++i % iconsPerRow == 0) row.row();
-            }
-            if(i == 0) row.add("[lightgray]none");
-        }).row();
-    }
-
-    static void iconCell(Table row, TextureRegion icon, int count, String tip){
-        Table badge = new Table();
-        badge.bottom().right();
-        if(count > 1) badge.add("x" + count).style(Styles.outlineLabel);
-        row.stack(new Image(icon), badge).size(56f).pad(4f).tooltip(tip);
-    }
-
     void buildHud(){
         Table panel = new Table(Tex.wavepane);
         panel.name = "rogue-hud";
         panel.visible(() -> RogueRun.active() && ui.hudfrag.shown());
         panel.left();
-        panel.defaults().height(40f).growX();
-        panel.add(new Bar(() -> run() == null ? "" : RogueRun.captured() ? "Sector cleared" : "Level " + run().level, () -> Pal.accent, () -> run() == null ? 0f : RogueRun.captured() ? 1f : run().xpProgress())).height(24f).pad(4f).row();
-        panel.button("Roguedustry Modifiers", Icon.book, Styles.cleart, this::showRunInfo);
+        panel.defaults().growX();
+        panel.add(new Bar(() -> run() == null ? "" : RogueRun.captured() ? "Sector captured" : "Level " + (run().level + 1), () -> Pal.accent, () -> run() == null ? 0f : RogueRun.captured() ? 1f : run().xpProgress())).height(24f).pad(4f).row();
+        Table admin = new Table();
+        boolean[] shown = {false};
+        admin.update(() -> {
+            boolean on = Core.settings.getBool(adminKey, false);
+            if(on == shown[0] && admin.hasChildren() == on) return;
+            shown[0] = on;
+            admin.clear();
+            if(on) admin.button("Admin", Icon.wrench, Styles.cleart, this::showAdmin).growX().height(40f);
+        });
+        panel.add(admin).growX();
+        panel.row();
+        Table copies = new Table();
+        String[] last = {""};
+        copies.update(() -> {
+            StringBuilder key = new StringBuilder();
+            for(Survivor.Gun gun : Survivor.ownedGuns) key.append(gun.turret.name).append(Survivor.gunLevel.get(gun, 1));
+            for(Survivor.Passive p : Survivor.ownedPassives) key.append(p.id).append(Survivor.level(p));
+            if(key.toString().equals(last[0])) return;
+            last[0] = key.toString();
+            copies.clear();
+            loadout(copies, 36f);
+        });
+        panel.add(copies).left().pad(2f);
 
         Table waves = ui.hudGroup.find("waves");
         if(waves != null){

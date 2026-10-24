@@ -38,8 +38,7 @@ public class RogueRun{
 
     public static @Nullable RogueRun current;
     static final ObjectMap<TechNode, ItemStack[]> realCosts = new ObjectMap<>();
-    static final float waveGapScale = 0.1f, spawnScale = 2.5f;
-    static final ObjectFloatMap<Difficulty> realSpawn = new ObjectFloatMap<>();
+    static final float waveGapScale = 0.2f;
     static final ObjectFloatMap<UnitType> realBuildSpeed = new ObjectFloatMap<>();
     static final float coreBuildScale = 2f;
     static final ObjectMap<Planet, Boolean> realUnlocked = new ObjectMap<>();
@@ -48,7 +47,9 @@ public class RogueRun{
     public long id;
     public boolean wireless;
     public int launches, picksTaken;
+    public Difficulty difficulty = Difficulty.eradication;
     public final ObjectIntMap<Rewards.Reward> rewards = new ObjectIntMap<>();
+    public final ObjectIntMap<Block> copies = new ObjectIntMap<>();
     public final Seq<Curses.Curse> curses = new Seq<>();
     public float xp;
     public int level, relicsTaken;
@@ -63,21 +64,34 @@ public class RogueRun{
     final ObjectFloatMap<Block> blockSpeed = new ObjectFloatMap<>(), blockHealth = new ObjectFloatMap<>();
 
     public static boolean exists(){
-        return Core.settings.has(saveKey);
+        return Core.settings.has(saveKey) && Arena.saved();
     }
 
     public static void startNew(){
-        startNew(false);
+        startNew(Difficulty.eradication);
     }
 
-    public static void startNew(boolean wireless){
-        if(Profile.inRun()) leave();
-        Profile.deleteRun();
+    public static void startNew(Difficulty difficulty){
+        Arena.deleteSave();
         RogueRun run = new RogueRun();
         run.id = Math.abs(new Rand().nextLong());
-        run.wireless = wireless;
+        run.difficulty = difficulty;
         run.save();
-        enter();
+        current = run;
+        current.applyTweaks();
+        Arena.start(run.id);
+    }
+
+    public static void resume(){
+        current = load();
+        if(current == null) return;
+        current.applyTweaks();
+        Arena.resume();
+    }
+
+    public static void finish(boolean won){
+        Core.settings.remove(saveKey);
+        Log.info("[Rogue] Run @ on wave @", won ? "won" : "lost", state.wave);
     }
 
     public static void enter(){
@@ -102,7 +116,6 @@ public class RogueRun{
         for(var e : realCosts) e.key.requirements = e.value;
         realCosts.clear();
         TurretMods.restoreCosts();
-        setMoreEnemies(false);
         setFastBuilders(false);
         setSerpuloOnly(false);
         Profile.switchTo(Profile.player);
@@ -111,8 +124,7 @@ public class RogueRun{
     }
 
     public static void abandon(){
-        if(Profile.inRun()) leave();
-        Profile.deleteRun();
+        Arena.deleteSave();
         Core.settings.remove(saveKey);
         current = null;
     }
@@ -128,13 +140,6 @@ public class RogueRun{
         }
     }
 
-    static void setMoreEnemies(boolean more){
-        for(Difficulty d : Difficulty.all){
-            if(!realSpawn.containsKey(d)) realSpawn.put(d, d.enemySpawnMultiplier);
-            d.enemySpawnMultiplier = realSpawn.get(d, 1f) * (more ? spawnScale : 1f);
-        }
-    }
-
     static void setSerpuloOnly(boolean only){
         if(only && realUnlocked.isEmpty()){
             for(Planet p : content.planets()) realUnlocked.put(p, p.alwaysUnlocked);
@@ -147,43 +152,32 @@ public class RogueRun{
 
     public void applyTweaks(){
         TurretMods.applyCosts();
-        setMoreEnemies(wireless);
         setFastBuilders(wireless);
     }
 
     public static boolean active(){
-        return current != null && Profile.inRun() && state.isGame() && state.isCampaign();
+        return current != null && Arena.active();
     }
 
     public static final int maxRelics = 4, levelsPerRelic = 10;
+    public static final boolean relicsOn = false;
 
     public static boolean captured(){
         return state.rules.sector != null && state.rules.sector.info.wasCaptured;
     }
 
     public static float xpFor(int level){
-        return 400f + 300f * level;
+        return 5f + 10f * level + 0.4f * level * level;
     }
 
     public float xpProgress(){
         return Math.min(xp / xpFor(level), 1f);
     }
 
-    void gainXp(Unit unit){
-        if(captured()) return;
-        xp += unit.maxHealth;
-        while(xp >= xpFor(level)){
-            xp -= xpFor(level);
-            level++;
-            pendingModifiers++;
-            if(level % levelsPerRelic == 0 && relicsTaken < maxRelics) pendingRelic = true;
-            Log.info("[Rogue] Level @", level);
-        }
-    }
-
     void resetSector(){
         for(Curses.Curse m : curses) Curses.lifted(m);
         rewards.clear();
+        copies.clear();
         curses.clear();
         clearOffer();
         xp = 0f;
@@ -192,16 +186,8 @@ public class RogueRun{
         sectorLoaded = false;
     }
 
-    void clearSector(){
-        resetSector();
-        sectorLoaded = true;
-        applyTweaks();
-        if(state.isGame()) for(CoreBuild core : state.rules.defaultTeam.cores()) core.onProximityUpdate();
-        Log.info("[Rogue] Sector cleared, its relics, curses and modifiers are gone");
-    }
-
     void writeSector(DataOutput out) throws IOException{
-        out.writeInt(3);
+        out.writeInt(4);
         out.writeFloat(xp);
         out.writeInt(level);
         out.writeInt(relicsTaken);
@@ -220,6 +206,11 @@ public class RogueRun{
         for(boolean b : rerolled) out.writeBoolean(b);
         out.writeBoolean(pendingGift);
         Curses.write(out);
+        out.writeInt(copies.size);
+        for(var e : copies){
+            out.writeUTF(e.key.name);
+            out.writeInt(e.value);
+        }
     }
 
     void readSector(DataInput in) throws IOException{
@@ -250,6 +241,14 @@ public class RogueRun{
         for(int i = 0; i < rerolled.length; i++) rerolled[i] = in.readBoolean();
         if(version >= 2) pendingGift = in.readBoolean();
         if(version >= 3) Curses.read(in);
+        if(version >= 4){
+            count = in.readInt();
+            for(int i = 0; i < count; i++){
+                Block block = content.block(in.readUTF());
+                int n = in.readInt();
+                if(block != null) copies.put(block, n);
+            }
+        }
         sectorLoaded = true;
     }
 
@@ -278,13 +277,17 @@ public class RogueRun{
     void onLoaded(){
         loadedAt = Time.millis();
         state.rules.disableUnitCap = true;
-        for(Block block : content.blocks()){
-            if(disabled(block)) state.rules.bannedBlocks.add(block);
+        if(!sectorLoaded){
+            pendingRelic = relicsOn && relicOffer().any();
+            copies.putAll(Arena.startingKit());
         }
-        if(tutorial(state.rules.sector)) skipTutorial();
-        state.getPlanet().campaignRules.sectorInvasion = false;
-        if(!sectorLoaded && !captured()) pendingRelic = relicOffer().any();
         sectorLoaded = true;
+        if(!relicsOn){
+            pendingRelic = pendingCurse = false;
+            for(Curses.Curse curse : curses) Curses.lifted(curse);
+            curses.clear();
+        }
+        Arena.recount();
         applyTweaks();
         if(!headless) ui.hudfrag.blockfrag.rebuild();
     }
@@ -392,6 +395,12 @@ public class RogueRun{
             pendingModifiers--;
             picksTaken++;
             clearOffer();
+        }
+        if(reward.copyOf != null){
+            copies.increment(reward.copyOf, Arena.cardSize(reward.copyOf));
+            Arena.recount();
+            Log.info("[Rogue] Took '@'", reward.name);
+            return;
         }
         grant(reward);
     }
@@ -629,6 +638,7 @@ public class RogueRun{
         out.append("id=").append(id).append('\n');
         out.append("wireless=").append(wireless).append('\n');
         out.append("launches=").append(launches).append('\n');
+        out.append("difficulty=").append(difficulty.name()).append('\n');
         Core.settings.put(saveKey, out.toString());
     }
 
@@ -645,6 +655,7 @@ public class RogueRun{
                     case "id" -> run.id = Long.parseLong(v);
                     case "wireless" -> run.wireless = Boolean.parseBoolean(v);
                     case "launches" -> run.launches = Integer.parseInt(v);
+                    case "difficulty" -> run.difficulty = Structs.find(Difficulty.all, d -> d.name().equals(v));
                 }
             }
             return run;
@@ -662,7 +673,7 @@ public class RogueRun{
         SaveVersion.addCustomChunk("roguedustry-sector", new SaveFileReader.CustomChunk(){
             @Override
             public boolean shouldWrite(){
-                return current != null && Profile.inRun();
+                return current != null && Arena.active();
             }
 
             @Override
@@ -672,7 +683,7 @@ public class RogueRun{
 
             @Override
             public void read(DataInput in) throws IOException{
-                if(current != null && Profile.inRun()) current.readSector(in);
+                if(current != null) current.readSector(in);
             }
         });
 
@@ -698,7 +709,6 @@ public class RogueRun{
         Events.on(SectorCaptureEvent.class, e -> {
             if(current == null || !Profile.inRun()) return;
             lockSectors();
-            current.clearSector();
         });
 
         Events.on(WorldLoadEvent.class, e -> Core.app.post(() -> {
@@ -715,9 +725,6 @@ public class RogueRun{
         Events.on(UnitDestroyEvent.class, e -> {
             if(!active()) return;
             if(e.unit.team == state.rules.defaultTeam && current.stacks(Rewards.recycle) > 0) current.recycle(e.unit);
-            if(e.unit.team == state.rules.waveTeam){
-                current.gainXp(e.unit);
-            }
         });
 
         Events.on(BlockDestroyEvent.class, e -> {
